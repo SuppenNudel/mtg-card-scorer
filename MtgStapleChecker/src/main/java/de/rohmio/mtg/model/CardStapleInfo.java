@@ -1,4 +1,4 @@
-package de.rohmio.mtg;
+package de.rohmio.mtg.model;
 
 public class CardStapleInfo {
 	

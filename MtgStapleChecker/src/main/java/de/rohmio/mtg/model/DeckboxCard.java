@@ -1,6 +1,6 @@
-package de.rohmio.mtg;
+package de.rohmio.mtg.model;
 
-public class Card {
+public class DeckboxCard {
 	
 	private String name;
 	private String edition;
