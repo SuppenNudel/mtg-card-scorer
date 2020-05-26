@@ -3,11 +3,11 @@ package de.rohmio.mtg;
 public class DeckInfo {
 
 	private String deckName;
-	private String level; // competitiveness
+	private CompLevel level; // competitiveness
 	private String rank; // result
 	private String date;
 	
-	public DeckInfo(String deckName, String level, String rank, String date) {
+	public DeckInfo(String deckName, CompLevel level, String rank, String date) {
 		this.deckName = deckName;
 		this.level = level;
 		this.rank = rank;
@@ -25,7 +25,7 @@ public class DeckInfo {
 	public String getDate() {
 		return date;
 	}
-	public String getLevel() {
+	public CompLevel getLevel() {
 		return level;
 	}
 	public String getRank() {

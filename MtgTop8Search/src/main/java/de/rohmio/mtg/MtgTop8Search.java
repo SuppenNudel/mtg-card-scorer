@@ -2,7 +2,6 @@ package de.rohmio.mtg;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -46,77 +45,104 @@ public class MtgTop8Search {
 		date_end: 
 	 */
 	
-	private static final String DATA_CARDS = "cards";
-	
 	private static final String ln = System.lineSeparator();
 	
-	public static void main(String[] args) throws IOException {
-		CompLevel[] compLevels = { CompLevel.Professional, CompLevel.Major };
-		String[] cards = { "Leyline of the Void" };
-		getDecksContainingCards("LE", true, true, 90, cards, compLevels);
+	private MtgTop8Format format;
+	private static final String f_format = "format";
+	
+	private boolean mainboard;
+	private static final String f_mainboard = "MD_check";
+	
+	private boolean sideboard;
+	private static final String f_sideboard = "SB_check";
+	
+	private String startDate;
+	private static final String f_startdate = "date_start";
+	
+	private String[] cards;
+	private static final String f_cards = "cards";
+	
+	private CompLevel[] compLevels;
+	private static final String f_complevels = "compet_check[%s]";
+	
+	private static final String f_currentPage = "current_page";
+	
+	public void setStartDate(String startDate) {
+		this.startDate = startDate;
 	}
 	
-
-	public static List<DeckInfo> getDecksContainingCard(String format, boolean mainboard, boolean sideboard, int lastXdays, String card, CompLevel... compLevels) throws IOException {
-		return getDecksContainingCards(format, mainboard, sideboard, lastXdays, new String[] { card }, compLevels);
-	}
-	
-	public static List<DeckInfo> getDecksContainingCards(String format, boolean mainboard, boolean sideboard, int lastXdays, String[] cards, CompLevel... compLevels) throws IOException {
-		Connection connection = Jsoup.connect("https://www.mtgtop8.com/search");
-		
-		setCards(connection, cards);
-		setCompLevel(connection, compLevels);
-		setBoard(connection, mainboard, sideboard);
-		setFormat(connection, format);
-		
+	public void setStartDate(int lastXdays) {
 		Calendar cal = Calendar.getInstance();
-		cal.add(Calendar.DAY_OF_WEEK, -lastXdays);
+		cal.add(Calendar.DAY_OF_YEAR, -lastXdays);
 		Date result = cal.getTime();
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/YYYY");
 		
-		setStartDate(connection, dateFormat.format(result));
+		setStartDate(dateFormat.format(result));
+	}
+	
+	public void setFormat(MtgTop8Format format) {
+		this.format = format;
+	}
+	
+	public void setBoard(boolean mainboard, boolean sideboard) {
+		this.mainboard = mainboard;
+		this.sideboard = sideboard;
+	}
+	
+	public void setCompLevel(CompLevel... compLevels) {
+		this.compLevels = compLevels;
+	}
+	
+	public void setCards(String... cards) {
+		this.cards = cards;
+	}
+	
+	private List<DeckInfo> getDecks(int page) throws IOException {
+		Connection connection = Jsoup.connect("https://www.mtgtop8.com/search");
+		
+		connection.data(f_format, format.getTop8Code());
+		connection.data(f_startdate, startDate);
+		for(CompLevel compLevel : compLevels) {
+			connection.data(String.format(f_complevels, compLevel.getTop8Code()), "1");
+		}
+		connection.data(f_cards, String.join(ln, cards));
+		if(mainboard) {
+			connection.data(f_mainboard, "1");
+		}
+		if(sideboard) {
+			connection.data(f_sideboard, "1");
+		}
+		connection.data(f_currentPage, String.valueOf(page));
 		
 		Document doc = connection.post();
+		
+		/* 
+		 * TODO calculate score by multiplying the count of decks with their comp level
+		 * e.g.
+		 * 4 professional	=> 4*4
+		 * 3 major decks	=> 3*3
+		 * 16 competitive	=> 16*2
+		 * 20 regular		=> 20*1
+		 */
+		
 		List<DeckInfo> deckInfos = parseDocument(doc);
 		return deckInfos;
 	}
 	
-	private static void setStartDate(Connection connection, String date) {
-		System.out.println("Start Date: "+date);
-		connection.data("date_start", date);
-	}
-	
-	private static void setFormat(Connection connection, String format) {
-		System.out.println("Format: "+format);
-		connection.data("format", format);
-	}
-	
-	private static void setBoard(Connection connection, boolean main, boolean side) {
-		if(main) {
-			System.out.println("Maindeck");
-			connection.data("MD_check", "1");
+	public List<DeckInfo> getDecks() throws IOException {
+		List<DeckInfo> allDecks = new ArrayList<>();
+		for(int page=0; page<100; ++page) {
+			List<DeckInfo> decks = getDecks(page);
+			allDecks.addAll(decks);
 		}
-		if(side) {
-			System.out.println("Sideboard");
-			connection.data("SB_check", "1");
-		}
+		int sum = allDecks.size();
+		return allDecks;
 	}
 	
-	private static void setCompLevel(Connection connection, CompLevel... compLevels) {
-		System.out.println("Comp. Levels: "+Arrays.asList(compLevels));
-		for(CompLevel compLevel : compLevels) {
-			connection.data(String.format("compet_check[%s]", compLevel.getTop8Code()), "1");
-		}
-	}
-	
-	private static void setCards(Connection connection, String... cards) {
-		System.out.println("Cards: "+Arrays.asList(cards));
-		connection.data(DATA_CARDS, String.join(ln, cards));
-	}
-	
-	private static List<DeckInfo> parseDocument(Document doc) {
-		String sum = doc.select("table > tbody > tr > td > div[class=w_title]").text();
-		System.out.println("Sum: "+sum);
+	public List<DeckInfo> parseDocument(Document doc) {
+		String sumText = doc.select("table > tbody > tr > td > div[class=w_title]").text();
+		sumText = sumText.replace(" decks matching", "");
+		int sum = Integer.parseInt(sumText);
 		
 		Elements deckRowElements = doc.select("table > tbody > tr[class=hover_tr]");
 		List<DeckInfo> deckInfos = new ArrayList<>();
@@ -125,21 +151,21 @@ public class MtgTop8Search {
 			String deckName = select.get(1).text();
 			Elements stars = select.get(4).select("img");
 			String levelStar = stars.attr("src");
-			String level = null;
+			CompLevel level = null;
 			switch (levelStar) {
 			case "/graph/bigstar.png":
-				level = "Professional";
+				level = CompLevel.Professional;
 				break;
 			case "/graph/star.png":
 				switch (stars.size()) {
 				case 1:
-					level = "Regular";
+					level = CompLevel.Regular;
 					break;
 				case 2:
-					level = "Competitive";
+					level = CompLevel.Competitive;
 					break;
 				case 3:
-					level = "Major";
+					level = CompLevel.Major;
 					break;
 				default:
 					break;

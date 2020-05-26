@@ -1,10 +1,11 @@
 package de.rohmio.mtg;
 
-import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +16,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.apache.commons.io.FileUtils;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -25,42 +25,75 @@ import org.jsoup.select.Elements;
 import de.rohmio.mtg.model.CardStapleInfo;
 import de.rohmio.mtg.model.DeckboxCard;
 import de.rohmio.mtg.model.DeckboxDeck;
+import de.rohmio.mtg.write.IOHandler;
+import de.rohmio.mtg.write.SqlHandler;
 import de.rohmio.scryfall.api.ScryfallApi;
 import de.rohmio.scryfall.api.model.CardFaceObject;
 import de.rohmio.scryfall.api.model.CardObject;
-import de.rohmio.scryfall.api.model.ListObject;
 import de.rohmio.scryfall.api.model.enums.Format;
 import de.rohmio.scryfall.api.model.enums.Legality;
-import retrofit2.Call;
-import retrofit2.Response;
 
 public class MtgStapleChecker {
 	
 	private static Logger log = Logger.getLogger(MtgStapleChecker.class.getName());
 
-	private static final String ln = System.lineSeparator();
+	private static final String urlDeckboxDeck = "https://deckbox.org/sets/%s";
+	private static final String urlDeckboxUser = "https://deckbox.org/users/%s";
+
+	private static final String sqlHost = "62.108.32.180";
+	private static final String sqlPort = "3306";
+	private static final String sqlUser = "zfdzt_root";
+	private static final String sqlPassword = "dnfo*Ec79Hy3jhhA";
+	private static final String sqlDatabase = "mtg-collection";
+	private static final String sqlTable = "competitive_score";
 	
-	private static final String deckBox = "https://deckbox.org/sets/%s";
-	private static final String goldfish = "https://www.mtggoldfish.com/price/%s/%s";
+	private static Legality[] interrestingLegalities = { Legality.legal, Legality.restricted };
 	
-	private static final String metagame = "https://www.mtggoldfish.com/metagame";
+	public static final String FIELD_CARDNAME = "cardname";
+	public static final String FIELD_TIMESTAMP = "timestamp";
+	private static IOHandler ioHandler;
 	
 	private static ScryfallApi scryfallApi;
+	private static List<String> formats;
+	
+	// parameters
+	private static int lastXdays = 4*30;
+	private static String deckboxUser = "NudelForce";
+	private static String deckboxDirecory = "Boxes";
+	private static boolean mainboard = true;
+	private static boolean sideboard = true;
+	private static CompLevel[] compLevels = { CompLevel.Professional, CompLevel.Major };
 
 	public static void main(String[] args) throws IOException {
+		startScript();
+	}
+	
+	private static void startScript() throws IOException {
 		initLogger();
 		
+		formats = Arrays.asList(Format.values()).stream()
+				.filter(f -> f.getTop8Code() != null)
+				.map(f -> f.name()).collect(Collectors.toList());
+
+		List<String> fields = new ArrayList<>(formats);
+		fields.add(0, FIELD_CARDNAME);
+		fields.add(1, FIELD_TIMESTAMP);
+		
+//		CsvHandler csvHandler = new CsvHandler(new File("results/competitive_score.csv"));
+//		csvHandler.init(fields);
+		SqlHandler sqlHandler = new SqlHandler(sqlHost, sqlPort, sqlUser, sqlPassword, sqlDatabase, sqlTable);
+		sqlHandler.init(fields);
+
+		ioHandler = sqlHandler;
+		log.info(String.format("Using %s as ioHandler", ioHandler));
+		
 		scryfallApi = new ScryfallApi();
-		
-		// get formats
-//		List<String> formats = getMetagameFormats();
-		List<String> formats = Arrays.asList(Format.values()).stream().map(f -> f.name()).collect(Collectors.toList());
-		
-		// get box
-		List<DeckboxDeck> boxes = requestDeckIds("NudelForce", "Boxes");
+		// get boxes
+		List<DeckboxDeck> boxes = requestDeckIds(deckboxUser, deckboxDirecory);
 		for(DeckboxDeck box : boxes) {
-			doBox(box, formats);
+			doBox(box);
 		}
+//		doCard("Basilisk Collar");
 		
 		log.info("closing scryfall connection");
 		scryfallApi.close();
@@ -68,44 +101,22 @@ public class MtgStapleChecker {
 	}
 	
 	private static void initLogger() throws SecurityException, IOException {
-		FileHandler handler = new FileHandler("latest.log");
+		SimpleDateFormat format = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
+		String timestamp = format.format(new Date());
+		FileHandler handler = new FileHandler("logs/"+timestamp+".log");
 		handler.setFormatter(new SimpleFormatter());
 		log.addHandler(handler);
 	}
 	
-	private static void doBox(DeckboxDeck box, List<String> formats) throws IOException {
+	private static void doBox(DeckboxDeck box) throws IOException {
 		log.info("do box "+box);
-		log.info("Requesting cards from deckbox.org deck");
 		List<DeckboxCard> cards = parseDeckBox(box.getId());
-		log.info("Received cards from deckbox.org deck: "+cards);
-
-		// init storage file
-//		File file = new File(boxId+".md");
-//		initMdFile(file, formats);
-		File file = new File("results/"+box.getName()+".csv");
-		initCsvFile(file, formats);
 		
 		// go through cards in box
-		List<Thread> threads = new ArrayList<>();
 		for(DeckboxCard card : cards) {
-			// no threading due to mtggoldfish throttle
-//			Thread thread = new Thread(() -> {
-				try {
-					doCard(card, file, formats);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-//			}, card.toString());
-//			threads.add(thread);
-//			thread.start();
-		}
-		
-		// join all threads
-		for(Thread thread : threads) {
 			try {
-				thread.join();
-//				System.out.println(thread+" finished");
-			} catch (InterruptedException e) {
+				doCard(card.getName());
+			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
@@ -113,7 +124,7 @@ public class MtgStapleChecker {
 	
 	private static List<DeckboxDeck> requestDeckIds(String userName, String directory) {
 		log.info("Requesting decks from deckbox.org");
-		Document doc = getDocument("https://deckbox.org/users/"+userName);
+		Document doc = getDocument(String.format(urlDeckboxUser, userName));
 		Elements root = doc.select("span[data-title="+directory+"]");
 		Element parent = root.parents().get(0);
 		Element listing = parent.nextElementSibling();
@@ -134,197 +145,102 @@ public class MtgStapleChecker {
 		return deckIds;
 	}
 	
-	private static void initCsvFile(File file, List<String> formats) throws IOException {
-		file.delete();
-		FileUtils.writeStringToFile(file, "Name", "UTF-8", true);
-		
-		for(String format : formats) {
-			FileUtils.writeStringToFile(file, ","+format, "UTF-8", true);
-		}
-		FileUtils.writeStringToFile(file, ln, "UTF-8", true);
-	}
-	
-	private static void writeCsvLine(File file, String cardName, List<String> formats, Map<String, Integer> scores) throws IOException {
-		String line = cardName.replace(",", "");
-		for(String format : formats) {
-			Integer score = scores.get(format);
-			line += ",";
-			if(score != null) {
-				line += score;
+	private static void doCard(String cardname) throws IOException {
+		CardObject scryfallCard = scryfallApi.cards().cardByName(cardname, null).execute().body();
+		String normalizedCardname = cardname;
+		List<CardFaceObject> card_faces = scryfallCard.getCard_faces();
+		if(card_faces != null) {
+			// TODO add fields for special cases
+			if(scryfallCard.getType_line().contains("Adventure")) {
+				normalizedCardname = card_faces.get(0).getName();
 			}
 		}
-		System.out.println(String.format("Writing in '%s': %s", file.getName(), line));
-		FileUtils.writeStringToFile(file, line+ln, "UTF-8", true);
-	}
-	
-	private static void initMdFile(File file, List<String> formats) throws IOException {
-		log.info("init md file: "+file);
-		log.info("deleting file: "+file);
-		file.delete();
-		FileUtils.writeStringToFile(file, "Name", "UTF-8", true);
+		log.info("Doing card: "+normalizedCardname);
 		
-		for(String format : formats) {
-			FileUtils.writeStringToFile(file, " | "+format, "UTF-8", true);
+		if(isInfoStillRelevant(normalizedCardname)) {
+			return;
 		}
-		FileUtils.writeStringToFile(file, ln, "UTF-8", true);
 		
-		String join = String.join("", Collections.nCopies(formats.size(), " | ---"));
-		FileUtils.writeStringToFile(file, "---"+join+ln, "UTF-8", true);
-	}
-	
-	private static void writeMdLine(File file, String cardName, List<String> formats, Map<String, Integer> scores) throws IOException {
-		String line = cardName;
-		for(String format : formats) {
-			Integer score = scores.get(format);
-			line += " |";
-			if(score != null) {
-				line += " "+score;
+		final Map<String, String> scores = new HashMap<>();
+		scores.put(FIELD_CARDNAME, normalizedCardname);
+		
+		List<Thread> threads = new ArrayList<>();
+		Map<Format, Legality> cardLegalities = scryfallCard.getLegalities();
+		final String finalCardname = normalizedCardname;
+		// go through formats in which the card is legal
+		for(Format format : Format.values()) {
+			String top8FormatCode = format.getTop8Code();
+			// if this format can not be looked up on mtgtop8 skip it
+			if(top8FormatCode == null) {
+				continue;
 			}
-		}
-		System.out.println(String.format("Writing in '%s': %s", file.getName(), line));
-		FileUtils.writeStringToFile(file, line+ln, "UTF-8", true);
-	}
-	
-	private static void doCard(DeckboxCard card, File file, List<String> formats) throws IOException {
-		System.out.println("Doing card: "+card);
-		CardObject cardFromScryfall = getCardFromScryfall(card.getName());
-		List<CardFaceObject> card_faces = cardFromScryfall.getCard_faces();
-		String cardName;
-		if(card_faces == null) {
-			cardName = cardFromScryfall.getName();
-		} else {
-			String oracle_textFront = card_faces.get(0).getOracle_text();
-			String type_lineBack = card_faces.get(1).getType_line();
-			if(oracle_textFront.toLowerCase().contains("transform")
-					|| type_lineBack.contains("Adventure")) {
-				cardName = card_faces.get(0).getName();
-			} else {
-				cardName = cardFromScryfall.getName();
+			
+			Legality legality = cardLegalities.get(format);
+			// if card is not legal in this format skip it
+			if(!Arrays.asList(interrestingLegalities).contains(legality)) {
+				scores.put(format.name(), "-1");
+				continue;
 			}
-		}
-		String edition = cardFromScryfall.getSet_name();
-		if(cardFromScryfall.getFoil()) {
-			edition += ":Foil";
-		}
-		
-		Map<String, Integer> scores = null;
-		
-		boolean goldfish = false;
-
-		if(goldfish) {
-			String regex = "[,':]|// ";
-			cardName = cardName.replaceAll(regex, "");
-			edition = SetMapping.scryfallToGoldfish(edition);
-			List<CardStapleInfo> parseGoldfish = parseGoldfish(edition, cardName);
-			if(parseGoldfish == null) {
-				return;
-			}
-			scores = scoreMtgGoldfish(parseGoldfish);
-		} else {
-			scores = new HashMap<>();
-			Map<Format, Legality> legalities = cardFromScryfall.getLegalities();
-			for(Format format : legalities.keySet()) {
-				Legality legality = legalities.get(format);
-				if(legality == Legality.legal || legality == Legality.restricted) {
-					String top8Code = format.getTop8Code();
-					if(top8Code != null) {
-						List<DeckInfo> deckInfos = MtgTop8Search.getDecksContainingCard(top8Code, true, true, 90, cardName, CompLevel.Professional, CompLevel.Major);
-						int deckCount = deckInfos.size();
-						scores.put(format.name(), deckCount);
+			Thread thread = new Thread(() -> {
+				// repeat request for as long as it fails
+				Integer decksMatching = null;
+				for(int tryNo=0; tryNo<=10 && decksMatching == null; ++tryNo) {
+					try {
+						decksMatching = MtgTop8Search.getDecksContainingCard(top8FormatCode, mainboard, sideboard, lastXdays, finalCardname, compLevels);
+						scores.put(format.name(), String.valueOf(decksMatching));
+					} catch (IOException e) {
+						// repeat
+						log.warning(String.format("%s on %s; repeating action tryNo %s", e.getMessage(), finalCardname, tryNo));
 					}
 				}
-			}
+				if(decksMatching == null) {
+					log.warning(String.format("repeated request often enough, still no response on card: %s", finalCardname));
+				}
+			});
+			threads.add(thread);
+			thread.start();
 		}
-		
-//		System.out.println(String.format("Score of '%s': %s", cardName, scores));
-		
-//		writeMdLine(file, cardName, formats, scores);
-		writeCsvLine(file, cardName, formats, scores);
-	}
-	
-	private static Map<String, Integer> scoreMtgGoldfish(List<CardStapleInfo> cardStapleInfos) {
-		Map<String, Integer> sums = new HashMap<>();
-//		int differentDecks = cardStapleInfos.size();
-//		int amountOfAllDecks = cardStapleInfos.stream().mapToInt(CardStapleInfo::getDeckCount).sum();
-		for(CardStapleInfo cardStapleInfo : cardStapleInfos) {
-			String format = cardStapleInfo.getFormat();
-			int deckCount = cardStapleInfo.getDeckCount();
-			Integer oldValue = sums.get(format);
-			int newValue;
-			if(oldValue == null) {
-				newValue = deckCount;
-			} else {
-				newValue = oldValue + deckCount;
-			}
-			sums.put(format, newValue);
-		}
-		
-		return sums;
-	}
-	
-	private static List<String> getMetagameFormats() {
-		log.info("Requesting metagame formats");
-		Document doc = getDocument(metagame);
-		Elements formatElements = doc.select(".deck-price-paper > .subNav-menu-desktop > a");
-		List<String> formats = new ArrayList<>();
-		for(Element formatElement : formatElements) {
-			formats.add(formatElement.text());
-		}
-		log.info("Received metagame formats: "+formats);
-		return formats;
-	}
-
-	private static List<CardStapleInfo> parseGoldfish(String setName, String cardName) throws IOException {
-		String url = String.format(goldfish, setName, cardName);
-
-		Document doc = getDocument(url);
-		if(doc == null) {
-			return null;
-		}
-		
-		List<CardStapleInfo> cardStapleInfos = new ArrayList<>();
-		
-		Element recentDecksElement = doc.selectFirst(".price-card-recent-decks");
-		if(doc.toString().contains("Throttled")) {
+		threads.forEach(t -> {
 			try {
-				System.err.println("got trottled. waiting 10 seconds.");
-				Thread.sleep(10000);
+				t.join();
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			return parseGoldfish(setName, cardName);
-		}
-		Elements rows = recentDecksElement.select("tr");
-		for(Element row : rows) {
-			Elements cells = row.select("td");
-			CardStapleInfo cardStapleInfo = new CardStapleInfo();
-			for(Element cell : cells) {
-				String key = cell.attr("class");
-				String value = cell.text();
-				switch (key) {
-				case "col-num-decks":
-					// number of decks with this deck name
-					cardStapleInfo.setDeckCount(Integer.parseInt(value));
-					break;
-				case "col-deck-name":
-					// deck name
-					cardStapleInfo.setDeckName(value);
-					break;
-				case "col-format":
-					// format
-					cardStapleInfo.setFormat(value);
-					break;
-				default:
-					break;
-				}
-			}
-			cardStapleInfos.add(cardStapleInfo);
-		}
-		return cardStapleInfos;
+		});
+		
+		log.info("Collected all infos about card: "+normalizedCardname);
+		ioHandler.addDataset(scores);
 	}
-
+	
+	private static boolean isInfoStillRelevant(String cardname) {
+		CardStapleInfo cardStapleInfo = ioHandler.getCardStapleInfo(cardname);
+		if(cardStapleInfo == null) {
+			log.info("no info about card; requesting: "+cardname);
+			return false;
+		}
+		if(cardStapleInfo.anyIsNull()) {
+			log.info("card has null values; repairing: "+cardname);
+			return false;
+		}
+		Calendar dbTime = cardStapleInfo.getTimestamp();
+		if(dbTime != null) {
+			dbTime.add(Calendar.DAY_OF_YEAR, lastXdays / 2);
+			Calendar now = Calendar.getInstance();
+			if(dbTime.after(now)) {
+				log.info("info about card still relevant: "+cardname);
+				return true;
+			} else {
+				log.info("info about card too old; requesting: "+cardname);
+			}
+		} else {
+			log.info("Missing timestamp; requesting: "+cardname);
+		}
+		return false;
+	}
+	
 	private static List<DeckboxCard> parseDeckBox(String deckId) throws IOException {
-		String url = String.format(deckBox, deckId);
+		log.info("Requesting cards from deckbox.org deck");
+		String url = String.format(urlDeckboxDeck, deckId);
 
 		Document doc = getDocument(url);
 		Elements tableElements = doc.select("table[class*=set_cards]");
@@ -352,51 +268,27 @@ public class MtgStapleChecker {
 				cards.add(card);
 			}
 		}
+		log.info("Received cards from deckbox.org deck: "+cards);
 		return cards;
 	}
 	
 	private static Document getDocument(String url) {
 		try {
-//			System.out.println("Requesting: "+url);
 			Connection connect = Jsoup.connect(url);
 			Document document = connect.get();
 			return document;
 		} catch (IOException e) {
 			String message = e.toString();
 			if(message.contains("Status=404")) {
-				System.err.println(e);
+				log.warning(e.toString());
 			} else if(message.contains("Status=502")) {
-				// do nothing trying again
+				log.warning(e.toString()+"; trying again");
+				return getDocument(url);
 			} else {
-				System.err.println(e);
+				log.warning(e.toString());
 			}
 		}
 		return null;
 	}
 	
-	private static CardObject getCardFromScryfall(String cardName) {
-		Response<ListObject<CardObject>> response = null;
-		try {
-			String query = String.format("is:firstprint !'%s'", cardName.replace("'", ""));
-			Call<ListObject<CardObject>> call = scryfallApi.cards().cards(query);
-//			HttpUrl url = call.request().url();
-//			System.out.println("Requesting: "+url);
-			response = call.execute();
-			CardObject card = response.body().getData().get(0);
-//			String name;
-//			if(card.getCard_faces() == null) {
-//				name = card.getName();
-//			} else {
-//				name = card.getCard_faces().get(0).getName();
-//			}
-//			System.out.println(String.format("%s (%s)", name, card.getSet_name()));
-			return card;
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
-//			response.raw().body().close();
-		}
-		return null;
-	}
-
 }
