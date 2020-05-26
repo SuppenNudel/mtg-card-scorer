@@ -1,5 +1,6 @@
 package de.rohmio.mtg;
 
+import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -65,6 +66,7 @@ public class MtgStapleChecker {
 //	private static CompLevel[] compLevels = { CompLevel.Professional, CompLevel.Major };
 
 	public static void main(String[] args) throws IOException {
+		initLogger();
 		initScript();
 
 		// get boxes
@@ -77,8 +79,6 @@ public class MtgStapleChecker {
 	}
 	
 	private static void initScript() throws IOException {
-		initLogger();
-		
 		formats = Arrays.asList(Format.values()).stream()
 				.filter(f -> f.getTop8Code() != null)
 				.map(f -> f.name()).collect(Collectors.toList());
@@ -105,6 +105,7 @@ public class MtgStapleChecker {
 	}
 	
 	private static void initLogger() throws SecurityException, IOException {
+		new File("logs").mkdir();
 		SimpleDateFormat format = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
 		String timestamp = format.format(new Date());
 		FileHandler handler = new FileHandler("logs/"+timestamp+".log");
