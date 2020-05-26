@@ -57,18 +57,26 @@ public class MtgStapleChecker {
 	private static List<String> formats;
 	
 	// parameters
-	private static int lastXdays = 4*30;
+	private static int lastXdays = 4*30; // last 4 months
 	private static String deckboxUser = "NudelForce";
 	private static String deckboxDirecory = "Boxes";
 	private static boolean mainboard = true;
 	private static boolean sideboard = true;
-	private static CompLevel[] compLevels = { CompLevel.Professional, CompLevel.Major };
+//	private static CompLevel[] compLevels = { CompLevel.Professional, CompLevel.Major };
 
 	public static void main(String[] args) throws IOException {
-		startScript();
+		initScript();
+
+		// get boxes
+		List<DeckboxDeck> boxes = requestDeckIds(deckboxUser, deckboxDirecory);
+		for(DeckboxDeck box : boxes) {
+			doBox(box);
+		}
+		
+		endScript();
 	}
 	
-	private static void startScript() throws IOException {
+	private static void initScript() throws IOException {
 		initLogger();
 		
 		formats = Arrays.asList(Format.values()).stream()
@@ -88,13 +96,9 @@ public class MtgStapleChecker {
 		log.info(String.format("Using %s as ioHandler", ioHandler));
 		
 		scryfallApi = new ScryfallApi();
-		// get boxes
-		List<DeckboxDeck> boxes = requestDeckIds(deckboxUser, deckboxDirecory);
-		for(DeckboxDeck box : boxes) {
-			doBox(box);
-		}
-//		doCard("Basilisk Collar");
-		
+	}
+	
+	private static void endScript() {
 		log.info("closing scryfall connection");
 		scryfallApi.close();
 		log.info("end");
@@ -129,20 +133,17 @@ public class MtgStapleChecker {
 		Element parent = root.parents().get(0);
 		Element listing = parent.nextElementSibling();
 		Elements select = listing.select("li[class=submenu_entry deck]");
-		List<DeckboxDeck> deckIds = new ArrayList<>();
+		List<DeckboxDeck> deckboxDecks = new ArrayList<>();
 		for(Element s : select) {
 			String id = s.attr("id");
 			String deckId = id.replace("deck_", "");
-			
 			String deckName = s.select("a").attr("data-title");
-			System.out.println(deckName);
 			
 			DeckboxDeck deckboxDeck = new DeckboxDeck(deckName, deckId);
-			
-			deckIds.add(deckboxDeck);
+			deckboxDecks.add(deckboxDeck);
 		}
-		log.info("Received decks from deckbox.org: "+deckIds);
-		return deckIds;
+		log.info("Received decks from deckbox.org: "+deckboxDecks);
+		return deckboxDecks;
 	}
 	
 	private static void doCard(String cardname) throws IOException {
@@ -161,12 +162,13 @@ public class MtgStapleChecker {
 			return;
 		}
 		
-		final Map<String, String> scores = new HashMap<>();
-		scores.put(FIELD_CARDNAME, normalizedCardname);
+		final Map<String, String> values = new HashMap<>();
+		values.put(FIELD_CARDNAME, normalizedCardname);
+		
+		final String finalCardName = normalizedCardname;
 		
 		List<Thread> threads = new ArrayList<>();
 		Map<Format, Legality> cardLegalities = scryfallCard.getLegalities();
-		final String finalCardname = normalizedCardname;
 		// go through formats in which the card is legal
 		for(Format format : Format.values()) {
 			String top8FormatCode = format.getTop8Code();
@@ -178,23 +180,33 @@ public class MtgStapleChecker {
 			Legality legality = cardLegalities.get(format);
 			// if card is not legal in this format skip it
 			if(!Arrays.asList(interrestingLegalities).contains(legality)) {
-				scores.put(format.name(), "-1");
+				values.put(format.name(), "-1");
 				continue;
 			}
 			Thread thread = new Thread(() -> {
+				MtgTop8Search mtgTop8Search = new MtgTop8Search();
+				mtgTop8Search.setBoard(mainboard, sideboard);
+				mtgTop8Search.setStartDate(lastXdays);
+				mtgTop8Search.setCards(finalCardName);
+//				mtgTop8Search.setCompLevel(compLevels); // request every comp level
+				
+				mtgTop8Search.setFormat(MtgTop8Format.valueOf(top8FormatCode));
+				
 				// repeat request for as long as it fails
-				Integer decksMatching = null;
-				for(int tryNo=0; tryNo<=10 && decksMatching == null; ++tryNo) {
+				List<DeckInfo> decks = null;
+				for(int tryNo=0; tryNo<=10 && decks == null; ++tryNo) {
 					try {
-						decksMatching = MtgTop8Search.getDecksContainingCard(top8FormatCode, mainboard, sideboard, lastXdays, finalCardname, compLevels);
-						scores.put(format.name(), String.valueOf(decksMatching));
+						
+						decks = mtgTop8Search.getDecks();
+						int score = calculateScore(decks);
+						values.put(format.name(), String.valueOf(score));
 					} catch (IOException e) {
 						// repeat
-						log.warning(String.format("%s on %s; repeating action tryNo %s", e.getMessage(), finalCardname, tryNo));
+						log.warning(String.format("%s on %s; repeating action tryNo %s", e.getMessage(), Arrays.asList(mtgTop8Search.getCards()), tryNo));
 					}
 				}
-				if(decksMatching == null) {
-					log.warning(String.format("repeated request often enough, still no response on card: %s", finalCardname));
+				if(decks == null) {
+					log.warning(String.format("repeated request often enough, still no response on card: %s", Arrays.asList(mtgTop8Search.getCards())));
 				}
 			});
 			threads.add(thread);
@@ -209,7 +221,24 @@ public class MtgStapleChecker {
 		});
 		
 		log.info("Collected all infos about card: "+normalizedCardname);
-		ioHandler.addDataset(scores);
+
+		ioHandler.addDataset(values);
+	}
+	
+	private static int calculateScore(List<DeckInfo> decks) {
+		int finalScore = 0;
+		for(DeckInfo deckInfo : decks) {
+			CompLevel level = deckInfo.getLevel();
+			switch (level) {
+			case Professional: finalScore += 5; break;
+			case Major: finalScore += 3; break;
+			case Competitive: finalScore += 2; break;
+			case Regular: finalScore += 1; break;
+			default:
+				break;
+			}
+		}
+		return finalScore;
 	}
 	
 	private static boolean isInfoStillRelevant(String cardname) {
@@ -261,7 +290,7 @@ public class MtgStapleChecker {
 				String collectorNumber = matcher.group(2);
 				card.setCollectorNumber(Integer.parseInt(collectorNumber));
 			} else {
-				System.err.println(editionFull+" didn't match");
+				log.warning(String.format("Edition '%s' did not match the format", editionFull));
 			}
 			// only add card if it is not yet in the list
 			if(cards.stream().noneMatch(c -> card.getName().equals(c.getName()))) {

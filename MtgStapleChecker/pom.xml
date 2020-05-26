@@ -5,6 +5,9 @@
 	<groupId>MtgStapleChecker</groupId>
 	<artifactId>MtgStapleChecker</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
+	<properties>
+		<maven.test.skip>true</maven.test.skip>
+	</properties>
 	<build>
 		<sourceDirectory>src/main/java</sourceDirectory>
 		<plugins>

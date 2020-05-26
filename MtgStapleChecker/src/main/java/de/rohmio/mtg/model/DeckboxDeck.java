@@ -10,6 +10,11 @@ public class DeckboxDeck {
 		this.id = id;
 	}
 	
+	@Override
+	public String toString() {
+		return String.format("%s (%s)", name, id);
+	}
+	
 	public String getName() {
 		return name;
 	}

@@ -5,6 +5,9 @@
 	<groupId>MtgTop8Search</groupId>
 	<artifactId>MtgTop8Search</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
+	<properties>
+		<maven.test.skip>true</maven.test.skip>
+	</properties>
 	<build>
 		<sourceDirectory>src/main/java</sourceDirectory>
 		<plugins>
@@ -30,6 +33,7 @@
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.13</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 </project>

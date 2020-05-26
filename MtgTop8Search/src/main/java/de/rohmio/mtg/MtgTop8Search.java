@@ -2,6 +2,7 @@ package de.rohmio.mtg;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -55,9 +56,12 @@ public class MtgTop8Search {
 	
 	private boolean sideboard;
 	private static final String f_sideboard = "SB_check";
-	
+
 	private String startDate;
 	private static final String f_startdate = "date_start";
+	
+	private String endDate;
+	private static final String f_enddate = "date_end";
 	
 	private String[] cards;
 	private static final String f_cards = "cards";
@@ -66,6 +70,15 @@ public class MtgTop8Search {
 	private static final String f_complevels = "compet_check[%s]";
 	
 	private static final String f_currentPage = "current_page";
+
+	@Override
+	public String toString() {
+		return Arrays.asList(cards).toString();
+	}
+	
+	public String[] getCards() {
+		return cards;
+	}
 	
 	public void setStartDate(String startDate) {
 		this.startDate = startDate;
@@ -78,6 +91,19 @@ public class MtgTop8Search {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/YYYY");
 		
 		setStartDate(dateFormat.format(result));
+	}
+	
+	public void setEndDate(String endDate) {
+		this.endDate = endDate;
+	}
+	
+	public void setEndDate(int lastXdays) {
+		Calendar cal = Calendar.getInstance();
+		cal.add(Calendar.DAY_OF_YEAR, -lastXdays);
+		Date result = cal.getTime();
+		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/YYYY");
+		
+		setEndDate(dateFormat.format(result));
 	}
 	
 	public void setFormat(MtgTop8Format format) {
@@ -100,12 +126,23 @@ public class MtgTop8Search {
 	private List<DeckInfo> getDecks(int page) throws IOException {
 		Connection connection = Jsoup.connect("https://www.mtgtop8.com/search");
 		
-		connection.data(f_format, format.getTop8Code());
-		connection.data(f_startdate, startDate);
-		for(CompLevel compLevel : compLevels) {
-			connection.data(String.format(f_complevels, compLevel.getTop8Code()), "1");
+		if(format != null) {
+			connection.data(f_format, format.name());
 		}
-		connection.data(f_cards, String.join(ln, cards));
+		if(startDate != null) {
+			connection.data(f_startdate, startDate);
+		}
+		if(endDate != null) {
+			connection.data(f_enddate, endDate);
+		}
+		if(compLevels != null) {
+			for(CompLevel compLevel : compLevels) {
+				connection.data(String.format(f_complevels, compLevel.getTop8Code()), "1");
+			}
+		}
+		if(cards != null) {
+			connection.data(f_cards, String.join(ln, cards));
+		}
 		if(mainboard) {
 			connection.data(f_mainboard, "1");
 		}
@@ -114,16 +151,8 @@ public class MtgTop8Search {
 		}
 		connection.data(f_currentPage, String.valueOf(page));
 		
+//		System.out.println("Requesting page "+page);
 		Document doc = connection.post();
-		
-		/* 
-		 * TODO calculate score by multiplying the count of decks with their comp level
-		 * e.g.
-		 * 4 professional	=> 4*4
-		 * 3 major decks	=> 3*3
-		 * 16 competitive	=> 16*2
-		 * 20 regular		=> 20*1
-		 */
 		
 		List<DeckInfo> deckInfos = parseDocument(doc);
 		return deckInfos;
@@ -131,18 +160,24 @@ public class MtgTop8Search {
 	
 	public List<DeckInfo> getDecks() throws IOException {
 		List<DeckInfo> allDecks = new ArrayList<>();
-		for(int page=0; page<100; ++page) {
+		for(int page=1; expectedDeckCount == null || expectedDeckCount > allDecks.size(); ++page) {
 			List<DeckInfo> decks = getDecks(page);
 			allDecks.addAll(decks);
+//			System.out.println("Expected to have "+expectedDeckCount+" decks");
+//			System.out.println(allDecks.size()+"/"+expectedDeckCount);
 		}
-		int sum = allDecks.size();
+		expectedDeckCount = null;
 		return allDecks;
 	}
 	
-	public List<DeckInfo> parseDocument(Document doc) {
+	private Integer expectedDeckCount = null;
+	
+	private List<DeckInfo> parseDocument(Document doc) {
 		String sumText = doc.select("table > tbody > tr > td > div[class=w_title]").text();
 		sumText = sumText.replace(" decks matching", "");
-		int sum = Integer.parseInt(sumText);
+		
+		int allDecksCount = Integer.parseInt(sumText);
+		this.expectedDeckCount = allDecksCount; 
 		
 		Elements deckRowElements = doc.select("table > tbody > tr[class=hover_tr]");
 		List<DeckInfo> deckInfos = new ArrayList<>();

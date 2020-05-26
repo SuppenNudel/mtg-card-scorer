@@ -47,6 +47,8 @@ public class CsvHandler implements IOHandler {
 						String key = columns[colIdx];
 						String value = values[colIdx];
 						Format format = Format.valueOf(key);
+						System.out.println(value);
+						System.out.println(format);
 					}
 				}
 			}
