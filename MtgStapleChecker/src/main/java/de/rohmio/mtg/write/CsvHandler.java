@@ -84,4 +84,9 @@ public class CsvHandler implements IOHandler {
 		throw new RuntimeException("Not yet implemented");
 	}
 
+	@Override
+	public List<CardStapleInfo> getCardsNotNeededAnymore(int daysAgo) {
+		throw new RuntimeException("Not yet implemented");
+	}
+
 }

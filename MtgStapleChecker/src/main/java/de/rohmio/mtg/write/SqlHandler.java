@@ -7,11 +7,14 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Field;
 import org.jooq.InsertOnDuplicateSetMoreStep;
@@ -88,11 +91,29 @@ public class SqlHandler implements IOHandler {
 		}
 	}
 	
-	
 	@Override
 	public CardStapleInfo getCardStapleInfo(String cardname) {
-		CardStapleInfo cardStapleInfo = context.selectFrom(table).where(field(MtgStapleChecker.FIELD_CARDNAME).eq(cardname)).fetchOneInto(CardStapleInfo.class);
+		CardStapleInfo cardStapleInfo = context.selectFrom(table)
+				.where(field(MtgStapleChecker.FIELD_CARDNAME)
+				.eq(cardname)).fetchOneInto(CardStapleInfo.class);
 		return cardStapleInfo;
+	}
+	
+	@Override
+	public List<CardStapleInfo> getCardsNotNeededAnymore(int daysAgo) {
+		List<Condition> conditions = new ArrayList<>();
+		// missing information
+		for(String format : MtgStapleChecker.formats) {
+			conditions.add(field(format).isNotNull());
+		}
+		Calendar calendar = Calendar.getInstance();
+		calendar.add(Calendar.DAY_OF_YEAR, -daysAgo);
+		conditions.add(field(MtgStapleChecker.FIELD_TIMESTAMP).greaterThan(calendar.getTime()));
+		List<CardStapleInfo> cardstapleinfos = context
+				.selectFrom(table)
+				.where(conditions)
+				.fetchInto(CardStapleInfo.class);
+		return cardstapleinfos;
 	}
 
 }

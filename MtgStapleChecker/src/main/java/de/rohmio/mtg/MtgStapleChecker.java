@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -57,7 +56,7 @@ public class MtgStapleChecker {
 	private static IOHandler ioHandler;
 	
 	private static ScryfallApi scryfallApi;
-	private static List<String> formats;
+	public static List<String> formats;
 	
 	// parameters
 	private static int lastXdays = 4*30; // last 4 months
@@ -79,8 +78,13 @@ public class MtgStapleChecker {
 			cards.forEach(c -> cardnames.add(c.getName()));
 		}
 		
+		// filter out cards where their information is still relevant
+		List<CardStapleInfo> cardsNotNeededAnymore = ioHandler.getCardsNotNeededAnymore(lastXdays / 2);
+		List<String> mapped = cardsNotNeededAnymore.stream().map(c -> c.getCardname()).collect(Collectors.toList());
+		List<String> remainingCards = cardnames.stream().filter(cn -> !mapped.contains(cn)).collect(Collectors.toList());
+		
 		// go through cards in box
-		for(String cardname : cardnames) {
+		for(String cardname : remainingCards) {
 			try {
 				doCard(cardname);
 			} catch (IOException e) {
@@ -147,9 +151,8 @@ public class MtgStapleChecker {
 		return deckboxDecks;
 	}
 	
-	private static void doCard(String cardname) throws IOException {
-		CardObject scryfallCard = scryfallApi.cards().cardByName(cardname, null).execute().body();
-		String normalizedCardname = cardname;
+	private static String normalizeCardName(CardObject scryfallCard) {
+		String normalizedCardname = scryfallCard.getName();
 		List<CardFaceObject> card_faces = scryfallCard.getCard_faces();
 		if(card_faces != null) {
 			// TODO add fields for special cases
@@ -157,16 +160,15 @@ public class MtgStapleChecker {
 				normalizedCardname = card_faces.get(0).getName();
 			}
 		}
-		log.info("Doing card: "+normalizedCardname);
-		
-		if(isInfoStillRelevant(normalizedCardname)) {
-			return;
-		}
+		return normalizedCardname;
+	}
+	
+	private static void doCard(String cardname) throws IOException {
+		CardObject scryfallCard = scryfallApi.cards().cardByName(cardname, null).execute().body();
+		log.info("Doing card: "+cardname);
 		
 		final Map<String, String> values = new HashMap<>();
-		values.put(FIELD_CARDNAME, normalizedCardname);
-		
-		final String finalCardName = normalizedCardname;
+		values.put(FIELD_CARDNAME, cardname	);
 		
 		List<Thread> threads = new ArrayList<>();
 		Map<Format, Legality> cardLegalities = scryfallCard.getLegalities();
@@ -188,7 +190,7 @@ public class MtgStapleChecker {
 				MtgTop8Search mtgTop8Search = new MtgTop8Search();
 				mtgTop8Search.setBoard(mainboard, sideboard);
 				mtgTop8Search.setStartDate(lastXdays);
-				mtgTop8Search.setCards(finalCardName);
+				mtgTop8Search.setCards(normalizeCardName(scryfallCard));
 //				mtgTop8Search.setCompLevel(compLevels); // request every comp level
 				
 				mtgTop8Search.setFormat(MtgTop8Format.valueOf(top8FormatCode));
@@ -221,7 +223,7 @@ public class MtgStapleChecker {
 			}
 		});
 		
-		log.info("Collected all infos about card: "+normalizedCardname);
+		log.info("Collected all infos about card: "+cardname);
 
 		ioHandler.addDataset(values);
 	}
@@ -240,32 +242,6 @@ public class MtgStapleChecker {
 			}
 		}
 		return finalScore;
-	}
-	
-	private static boolean isInfoStillRelevant(String cardname) {
-		CardStapleInfo cardStapleInfo = ioHandler.getCardStapleInfo(cardname);
-		if(cardStapleInfo == null) {
-			log.info("no info about card; requesting: "+cardname);
-			return false;
-		}
-		if(cardStapleInfo.anyIsNull()) {
-			log.info("card has null values; repairing: "+cardname);
-			return false;
-		}
-		Calendar dbTime = cardStapleInfo.getTimestamp();
-		if(dbTime != null) {
-			dbTime.add(Calendar.DAY_OF_YEAR, lastXdays / 2);
-			Calendar now = Calendar.getInstance();
-			if(dbTime.after(now)) {
-				log.info("info about card still relevant: "+cardname);
-				return true;
-			} else {
-				log.info("info about card too old; requesting: "+cardname);
-			}
-		} else {
-			log.info("Missing timestamp; requesting: "+cardname);
-		}
-		return false;
 	}
 	
 	private static List<DeckboxCard> parseDeckBox(String deckId) throws IOException {
