@@ -8,8 +8,10 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
@@ -71,8 +73,19 @@ public class MtgStapleChecker {
 
 		// get boxes
 		List<DeckboxDeck> boxes = requestDeckIds(deckboxUser, deckboxDirecory);
+		Set<String> cardnames = new HashSet<>();
 		for(DeckboxDeck box : boxes) {
-			doBox(box);
+			List<DeckboxCard> cards = parseDeckBox(box.getId());
+			cards.forEach(c -> cardnames.add(c.getName()));
+		}
+		
+		// go through cards in box
+		for(String cardname : cardnames) {
+			try {
+				doCard(cardname);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		endScript();
@@ -113,21 +126,8 @@ public class MtgStapleChecker {
 		log.addHandler(handler);
 	}
 	
-	private static void doBox(DeckboxDeck box) throws IOException {
-		log.info("do box "+box);
-		List<DeckboxCard> cards = parseDeckBox(box.getId());
-		
-		// go through cards in box
-		for(DeckboxCard card : cards) {
-			try {
-				doCard(card.getName());
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-	
 	private static List<DeckboxDeck> requestDeckIds(String userName, String directory) {
+		
 		log.info("Requesting decks from deckbox.org");
 		Document doc = getDocument(String.format(urlDeckboxUser, userName));
 		Elements root = doc.select("span[data-title="+directory+"]");
