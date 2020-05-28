@@ -54,7 +54,7 @@ public class SqlHandler implements IOHandler {
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		} 
-		String url = String.format("jdbc:mysql://%s:%s/%s", host, port, database);
+		String url = String.format("jdbc:mysql://%s:%s/%s?serverTimezone=GMT", host, port, database);
 
 		// Connection is the only JDBC resource that we need
 		// PreparedStatement and ResultSet are handled by jOOQ, internally
