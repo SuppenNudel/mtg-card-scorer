@@ -82,12 +82,14 @@ public class SqlHandler implements IOHandler {
 		@SuppressWarnings("unchecked")
 		Field<Object>[] fieldsArr = setMap.keySet().toArray(new Field[setMap.size()]);
 		Object[] valuesArr = setMap.values().toArray(new Object[setMap.size()]);
-		InsertOnDuplicateSetMoreStep<Record> call = context.insertInto(table(table), fieldsArr).values(valuesArr).onDuplicateKeyUpdate().set(setMap);
-		try {
-			call.execute();
-		} catch (Exception e) {
-			log.severe("Sql statement failed: "+call.toString());
-			e.printStackTrace();
+		synchronized (context) {
+			InsertOnDuplicateSetMoreStep<Record> call = context.insertInto(table(table), fieldsArr).values(valuesArr).onDuplicateKeyUpdate().set(setMap);
+			try {
+				call.execute();
+			} catch (Exception e) {
+				log.severe("Sql statement failed: "+call.toString());
+				e.printStackTrace();
+			}
 		}
 	}
 	
