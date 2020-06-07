@@ -17,6 +17,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.builder.fluent.Configurations;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -38,18 +41,8 @@ public class MtgStapleChecker {
 	
 	private static Logger log = Logger.getLogger(MtgStapleChecker.class.getName());
 
-	private static final String urlDeckboxDeck = "https://deckbox.org/sets/%s";
-	private static final String urlDeckboxUser = "https://deckbox.org/users/%s";
+	private static Configuration config;
 
-	private static final String sqlHost = "62.108.32.180";
-	private static final String sqlPort = "3306";
-	private static final String sqlUser = "zfdzt_root";
-	private static final String sqlPassword = "dnfo*Ec79Hy3jhhA";
-	private static final String sqlDatabase = "mtg-collection";
-	private static final String sqlTable = "competitive_score";
-	
-	private static Legality[] interrestingLegalities = { Legality.legal, Legality.restricted };
-	
 	public static final String FIELD_CARDNAME = "cardname";
 	public static final String FIELD_TIMESTAMP = "timestamp";
 	private static IOHandler ioHandler;
@@ -67,6 +60,7 @@ public class MtgStapleChecker {
 
 	public static void main(String[] args) throws IOException {
 		initLogger();
+		loadConfig();
 		initScript();
 
 		// get boxes
@@ -89,13 +83,31 @@ public class MtgStapleChecker {
 		
 //		CsvHandler csvHandler = new CsvHandler(new File("results/competitive_score.csv"));
 //		csvHandler.init(fields);
-		SqlHandler sqlHandler = new SqlHandler(sqlHost, sqlPort, sqlUser, sqlPassword, sqlDatabase, sqlTable);
+		SqlHandler sqlHandler = new SqlHandler(
+				config.getString("database.host"),
+				config.getInt("database.port"),
+				config.getString("database.user"),
+				config.getString("database.password", "secret"),
+				config.getString("database.database"),
+				config.getString("database.table"));
 		sqlHandler.init(fields);
 
 		ioHandler = sqlHandler;
 		log.info(String.format("Using %s as ioHandler", ioHandler));
 		
 		scryfallApi = new ScryfallApi();
+	}
+	
+	private static void loadConfig() {
+		Configurations configs = new Configurations();
+		try {
+		    config = configs.properties(new File("config.properties"));
+		    // access configuration properties
+//		    long dbTimeout = config.getLong("database.timeout");
+		} catch (ConfigurationException e) {
+		    // Something went wrong
+			e.printStackTrace();
+		}
 	}
 	
 	private static void endScript() {
@@ -129,7 +141,8 @@ public class MtgStapleChecker {
 	
 	private static List<DeckboxDeck> requestDeckIds(String userName, String directory) {
 		log.info("Requesting decks from deckbox.org");
-		Document doc = getDocument(String.format(urlDeckboxUser, userName));
+		String deckboxUserUrl = config.getString("deckbox.userurl");
+		Document doc = getDocument(String.format(deckboxUserUrl, userName));
 		Elements root = doc.select("span[data-title="+directory+"]");
 		Element parent = root.parents().get(0);
 		Element listing = parent.nextElementSibling();
@@ -180,6 +193,9 @@ public class MtgStapleChecker {
 			
 			Legality legality = cardLegalities.get(format);
 			// if card is not legal in this format skip it
+			
+			Legality[] interrestingLegalities = (Legality[]) config.getArray(Legality.class, "mtgtop8.legalities");
+			
 			if(!Arrays.asList(interrestingLegalities).contains(legality)) {
 				values.put(format.name(), "-1");
 				continue;
@@ -270,7 +286,8 @@ public class MtgStapleChecker {
 	
 	private static List<DeckboxCard> parseDeckBox(String deckId) throws IOException {
 		log.info("Requesting cards from deckbox.org deck");
-		String url = String.format(urlDeckboxDeck, deckId);
+		String deckboxDeckUrl = config.getString("deckbox.deckurl");
+		String url = String.format(deckboxDeckUrl, deckId);
 
 		Document doc = getDocument(url);
 		Elements tableElements = doc.select("table[class*=set_cards]");

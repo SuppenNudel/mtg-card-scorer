@@ -27,7 +27,7 @@ public class SqlHandler implements IOHandler {
 	private static Logger log = Logger.getLogger(SqlHandler.class.getName());
 
 	private String host;
-	private String port;
+	private int port;
 	private String user;
 	private String password;
 	private String database;
@@ -35,7 +35,7 @@ public class SqlHandler implements IOHandler {
 
 	private DSLContext context;
 	
-	public SqlHandler(String host, String port, String user, String password, String database, String table) {
+	public SqlHandler(String host, int port, String user, String password, String database, String table) {
 		this.host = host;
 		this.port = port;
 		this.user = user;
