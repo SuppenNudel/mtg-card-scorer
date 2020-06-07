@@ -50,20 +50,22 @@ public class MtgStapleChecker {
 	
 	private static ScryfallApi scryfallApi;
 	public static List<String> formats;
-	
-	// parameters
-	private static int lastXdays = 4*30; // last 4 months
-	private static String deckboxUser = "NudelForce";
-	private static String deckboxDirecory = "Boxes";
-	private static boolean mainboard = true;
-	private static boolean sideboard = true;
-//	private static CompLevel[] compLevels = { CompLevel.Professional, CompLevel.Major };
 
+	// mtgtop8 parameters
+	private static boolean mainboard;
+	private static boolean sideboard; 
+	private static int lastXdays;
+	private static List<Legality> interrestingLegalities;
+	private static CompLevel[] compLevels;
+	
 	public static void main(String[] args) throws IOException {
 		initLogger();
 		loadConfig();
 		initScript();
 
+		String deckboxUser = config.getString("deckbox.user");
+		String deckboxDirecory = config.getString("deckbox.direcory");
+		
 		// get boxes
 		List<DeckboxDeck> boxes = requestDeckIds(deckboxUser, deckboxDirecory);
 		Set<String> cardnames = new HashSet<>();
@@ -71,6 +73,8 @@ public class MtgStapleChecker {
 			List<DeckboxCard> cards = parseDeckBox(box.getId());
 			cards.forEach(c -> cardnames.add(c.getName()));
 		}
+		
+		int lastXdays = config.getInt("mtgtop8.lastxdays");
 		
 		// filter out cards where their information is still relevant
 		List<CardStapleInfo> cardsNotNeededAnymore = ioHandler.getCardsNotNeededAnymore(lastXdays / 2);
@@ -118,11 +122,28 @@ public class MtgStapleChecker {
 	private static void loadConfig() {
 		Configurations configs = new Configurations();
 		try {
-		    config = configs.properties(new File("config.properties"));
-		    // access configuration properties
-//		    long dbTimeout = config.getLong("database.timeout");
+			config = configs.properties(new File("config.properties"));
+			// access configuration properties
+
+			mainboard = config.getBoolean("mtgtop8.mainboard");
+			sideboard = config.getBoolean("mtgtop8.sideboard");
+			lastXdays = config.getInt("mtgtop8.lastxdays");
+			
+			String[] legalityStringArray = config.getString("mtgtop8.legalities").split(",");
+			interrestingLegalities = new ArrayList<>();
+			for(String string : legalityStringArray) {
+				interrestingLegalities.add(Legality.valueOf(string));
+			}
+			
+			String[] complevelStringArray = config.getString("mtgtop8.complevels").split(",");
+			List<CompLevel> compLevelsList = new ArrayList<>();
+			for(String string : complevelStringArray) {
+				compLevelsList.add(CompLevel.valueOf(string));
+			}
+			compLevels = compLevelsList.toArray(new CompLevel[compLevelsList.size()]);
+			
 		} catch (ConfigurationException e) {
-		    // Something went wrong
+			// Something went wrong
 			e.printStackTrace();
 		}
 	}
@@ -196,18 +217,18 @@ public class MtgStapleChecker {
 			Legality legality = cardLegalities.get(format);
 			// if card is not legal in this format skip it
 			
-			Legality[] interrestingLegalities = (Legality[]) config.getArray(Legality.class, "mtgtop8.legalities");
 			
-			if(!Arrays.asList(interrestingLegalities).contains(legality)) {
+			if(!interrestingLegalities.contains(legality)) {
 				values.put(format.name(), "-1");
 				continue;
 			}
+			
 			Thread thread = new Thread(() -> {
 				MtgTop8Search mtgTop8Search = new MtgTop8Search();
 				mtgTop8Search.setBoard(mainboard, sideboard);
 				mtgTop8Search.setStartDate(lastXdays);
 				mtgTop8Search.setCards(normalizeCardName(scryfallCard));
-//				mtgTop8Search.setCompLevel(compLevels); // request every comp level
+				mtgTop8Search.setCompLevel(compLevels);
 				
 				mtgTop8Search.setFormat(MtgTop8Format.valueOf(top8FormatCode));
 				
