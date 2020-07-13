@@ -7,34 +7,25 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.jsoup.Connection;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 
 import de.rohmio.mtg.model.CardStapleInfo;
-import de.rohmio.mtg.model.DeckboxCard;
-import de.rohmio.mtg.model.DeckboxDeck;
 import de.rohmio.mtg.write.IOHandler;
 import de.rohmio.mtg.write.SqlHandler;
 import de.rohmio.scryfall.api.ScryfallApi;
 import de.rohmio.scryfall.api.model.CardFaceObject;
 import de.rohmio.scryfall.api.model.CardObject;
+import de.rohmio.scryfall.api.model.CatalogObject;
+import de.rohmio.scryfall.api.model.enums.CatalogType;
 import de.rohmio.scryfall.api.model.enums.Format;
 import de.rohmio.scryfall.api.model.enums.Legality;
 
@@ -57,6 +48,7 @@ public class MtgStapleChecker {
 	private static int startXdaysbefore;
 	private static int endXdaysbefore;
 	private static List<Legality> interrestingLegalities;
+	private static List<Format> interrestingFormats;
 	private static CompLevel[] compLevels;
 	
 	public static void main(String[] args) throws IOException {
@@ -64,23 +56,15 @@ public class MtgStapleChecker {
 		loadConfig();
 		initScript();
 
-		String deckboxUser = config.getString("deckbox.user");
-		String deckboxDirecory = config.getString("deckbox.direcory");
-		
 		// get boxes
-		List<DeckboxDeck> boxes = requestDeckIds(deckboxUser, deckboxDirecory);
-		Set<String> cardnames = new HashSet<>();
-		for(DeckboxDeck box : boxes) {
-			List<DeckboxCard> cards = parseDeckBox(box.getId());
-			cards.forEach(c -> cardnames.add(c.getName()));
-		}
-		
-		int lastXdays = config.getInt("mtgtop8.lastxdays");
+		CatalogObject cardsCatalog = scryfallApi.catalog().getCatalog(CatalogType.CARD_NAMES).execute().body();
+		List<String> cardNames = cardsCatalog.getData();
+		log.info("Amount of cards: "+cardNames.size());
 		
 		// filter out cards where their information is still relevant
-		List<CardStapleInfo> cardsNotNeededAnymore = ioHandler.getCardsNotNeededAnymore(lastXdays / 2);
+		List<CardStapleInfo> cardsNotNeededAnymore = ioHandler.getCardsNotNeededAnymore(startXdaysbefore / 2);
 		List<String> mapped = cardsNotNeededAnymore.stream().map(c -> c.getCardname()).collect(Collectors.toList());
-		List<String> remainingCards = cardnames.stream().filter(cn -> !mapped.contains(cn)).collect(Collectors.toList());
+		List<String> remainingCards = cardNames.stream().filter(cn -> !mapped.contains(cn)).collect(Collectors.toList());
 		
 		// go through cards in box
 		for(String cardname : remainingCards) {
@@ -97,6 +81,7 @@ public class MtgStapleChecker {
 	
 	public static void initScript() throws IOException {
 		formats = Arrays.asList(Format.values()).stream()
+				.filter(f -> interrestingFormats.contains(f))
 				.filter(f -> f.getTop8Code() != null)
 				.map(f -> f.name()).collect(Collectors.toList());
 
@@ -132,6 +117,12 @@ public class MtgStapleChecker {
 			startXdaysbefore = config.getInt("mtgtop8.startXdaysbefore");
 			endXdaysbefore = config.getInt("mtgtop8.endXdaysbefore");
 			
+			String[] formatsStringArray = config.getString("mtgtop8.formats").split(",");
+			interrestingFormats = new ArrayList<>();
+			for(String formatString : formatsStringArray) {
+				interrestingFormats.add(Format.valueOf(formatString));
+			}
+			
 			String[] legalityStringArray = config.getString("mtgtop8.legalities").split(",");
 			interrestingLegalities = new ArrayList<>();
 			for(String string : legalityStringArray) {
@@ -166,28 +157,6 @@ public class MtgStapleChecker {
 		log.addHandler(handler);
 	}
 	
-	private static List<DeckboxDeck> requestDeckIds(String userName, String directory) {
-		
-		log.info("Requesting decks from deckbox.org");
-		String deckboxUserUrl = config.getString("deckbox.userurl");
-		Document doc = getDocument(String.format(deckboxUserUrl, userName));
-		Elements root = doc.select("span[data-title="+directory+"]");
-		Element parent = root.parents().get(0);
-		Element listing = parent.nextElementSibling();
-		Elements select = listing.select("li[class=submenu_entry deck]");
-		List<DeckboxDeck> deckboxDecks = new ArrayList<>();
-		for(Element s : select) {
-			String id = s.attr("id");
-			String deckId = id.replace("deck_", "");
-			String deckName = s.select("a").attr("data-title");
-			
-			DeckboxDeck deckboxDeck = new DeckboxDeck(deckName, deckId);
-			deckboxDecks.add(deckboxDeck);
-		}
-		log.info("Received decks from deckbox.org: "+deckboxDecks);
-		return deckboxDecks;
-	}
-	
 	private static String normalizeCardName(CardObject scryfallCard) {
 		String normalizedCardname = scryfallCard.getName();
 		List<CardFaceObject> card_faces = scryfallCard.getCard_faces();
@@ -210,7 +179,7 @@ public class MtgStapleChecker {
 		List<Thread> threads = new ArrayList<>();
 		Map<Format, Legality> cardLegalities = scryfallCard.getLegalities();
 		// go through formats in which the card is legal
-		for(Format format : Format.values()) {
+		for(Format format : interrestingFormats) {
 			String top8FormatCode = format.getTop8Code();
 			// if this format can not be looked up on mtgtop8 skip it
 			if(top8FormatCode == null) {
@@ -219,14 +188,14 @@ public class MtgStapleChecker {
 			
 			Legality legality = cardLegalities.get(format);
 			// if card is not legal in this format skip it
-			
-			
 			if(!interrestingLegalities.contains(legality)) {
 				values.put(format.name(), "-1");
 				continue;
 			}
 			
 			Thread thread = new Thread(() -> {
+				log.info(String.format("Requesting from mtgtop8; Card: '%s' Format: '%s'", cardname,format));
+				
 				MtgTop8Search mtgTop8Search = new MtgTop8Search();
 				mtgTop8Search.setBoard(mainboard, sideboard);
 				mtgTop8Search.setStartDate(startXdaysbefore);
@@ -283,60 +252,6 @@ public class MtgStapleChecker {
 			}
 		}
 		return finalScore;
-	}
-	
-	private static List<DeckboxCard> parseDeckBox(String deckId) throws IOException {
-		log.info("Requesting cards from deckbox.org deck");
-		String deckboxDeckUrl = config.getString("deckbox.deckurl");
-		String url = String.format(deckboxDeckUrl, deckId);
-
-		Document doc = getDocument(url);
-		Elements tableElements = doc.select("table[class*=set_cards]");
-		Elements cardRows = tableElements.select("tr[id]");
-		
-		List<DeckboxCard> cards = new ArrayList<>();
-		for(Element cardRow : cardRows) {
-			DeckboxCard card = new DeckboxCard();
-			String cardName = cardRow.select("td[class=card_name] > a[class=simple]").text();
-			card.setName(cardName);
-			String editionFull = cardRow.select("div[class=mtg_edition_container] > img").attr("data-title");
-			Pattern pattern = Pattern.compile("(.+?) \\(Card #(\\d+?)\\)");
-			Matcher matcher = pattern.matcher(editionFull);
-			boolean matches = matcher.matches();
-			if(matches) {
-				String edition = matcher.group(1);
-				card.setEdition(edition);
-				String collectorNumber = matcher.group(2);
-				card.setCollectorNumber(Integer.parseInt(collectorNumber));
-			} else {
-				log.warning(String.format("Edition '%s' did not match the format", editionFull));
-			}
-			// only add card if it is not yet in the list
-			if(cards.stream().noneMatch(c -> card.getName().equals(c.getName()))) {
-				cards.add(card);
-			}
-		}
-		log.info("Received cards from deckbox.org deck: "+cards);
-		return cards;
-	}
-	
-	private static Document getDocument(String url) {
-		try {
-			Connection connect = Jsoup.connect(url);
-			Document document = connect.get();
-			return document;
-		} catch (IOException e) {
-			String message = e.toString();
-			if(message.contains("Status=404")) {
-				log.warning(e.toString());
-			} else if(message.contains("Status=502")) {
-				log.warning(e.toString()+"; trying again");
-				return getDocument(url);
-			} else {
-				log.warning(e.toString());
-			}
-		}
-		return null;
 	}
 	
 }
