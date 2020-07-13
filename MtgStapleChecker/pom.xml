@@ -49,6 +49,13 @@
 		</plugins>
 	</build>
 	<dependencies>
+		<!-- https://mvnrepository.com/artifact/junit/junit -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.13</version>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>ScryfallApi</groupId>
 			<artifactId>ScryfallApi</artifactId>

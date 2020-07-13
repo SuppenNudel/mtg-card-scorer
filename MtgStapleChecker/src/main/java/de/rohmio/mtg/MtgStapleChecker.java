@@ -54,7 +54,8 @@ public class MtgStapleChecker {
 	// mtgtop8 parameters
 	private static boolean mainboard;
 	private static boolean sideboard; 
-	private static int lastXdays;
+	private static int startXdaysbefore;
+	private static int endXdaysbefore;
 	private static List<Legality> interrestingLegalities;
 	private static CompLevel[] compLevels;
 	
@@ -84,7 +85,8 @@ public class MtgStapleChecker {
 		// go through cards in box
 		for(String cardname : remainingCards) {
 			try {
-				doCard(cardname);
+				Map<String, String> values = doCard(cardname);
+				ioHandler.addDataset(values);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -93,7 +95,7 @@ public class MtgStapleChecker {
 		endScript();
 	}
 	
-	private static void initScript() throws IOException {
+	public static void initScript() throws IOException {
 		formats = Arrays.asList(Format.values()).stream()
 				.filter(f -> f.getTop8Code() != null)
 				.map(f -> f.name()).collect(Collectors.toList());
@@ -119,7 +121,7 @@ public class MtgStapleChecker {
 		scryfallApi = new ScryfallApi();
 	}
 	
-	private static void loadConfig() {
+	public static void loadConfig() {
 		Configurations configs = new Configurations();
 		try {
 			config = configs.properties(new File("config.properties"));
@@ -127,7 +129,8 @@ public class MtgStapleChecker {
 
 			mainboard = config.getBoolean("mtgtop8.mainboard");
 			sideboard = config.getBoolean("mtgtop8.sideboard");
-			lastXdays = config.getInt("mtgtop8.lastxdays");
+			startXdaysbefore = config.getInt("mtgtop8.startXdaysbefore");
+			endXdaysbefore = config.getInt("mtgtop8.endXdaysbefore");
 			
 			String[] legalityStringArray = config.getString("mtgtop8.legalities").split(",");
 			interrestingLegalities = new ArrayList<>();
@@ -197,7 +200,7 @@ public class MtgStapleChecker {
 		return normalizedCardname;
 	}
 	
-	private static void doCard(String cardname) throws IOException {
+	public static Map<String, String> doCard(String cardname) throws IOException {
 		CardObject scryfallCard = scryfallApi.cards().cardByName(cardname, null).execute().body();
 		log.info("Doing card: "+cardname);
 		
@@ -226,7 +229,8 @@ public class MtgStapleChecker {
 			Thread thread = new Thread(() -> {
 				MtgTop8Search mtgTop8Search = new MtgTop8Search();
 				mtgTop8Search.setBoard(mainboard, sideboard);
-				mtgTop8Search.setStartDate(lastXdays);
+				mtgTop8Search.setStartDate(startXdaysbefore);
+				mtgTop8Search.setEndDate(endXdaysbefore);
 				mtgTop8Search.setCards(normalizeCardName(scryfallCard));
 				mtgTop8Search.setCompLevel(compLevels);
 				
@@ -262,10 +266,10 @@ public class MtgStapleChecker {
 		
 		log.info("Collected all infos about card: "+cardname);
 
-		ioHandler.addDataset(values);
+		return values;
 	}
 	
-	private static int calculateScore(List<DeckInfo> decks) {
+	public static int calculateScore(List<DeckInfo> decks) {
 		int finalScore = 0;
 		for(DeckInfo deckInfo : decks) {
 			CompLevel level = deckInfo.getLevel();
