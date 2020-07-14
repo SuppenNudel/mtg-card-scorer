@@ -5,6 +5,9 @@ import java.util.Map;
 
 import org.junit.Test;
 
+import de.rohmio.scryfall.api.ScryfallApi;
+import de.rohmio.scryfall.api.model.CardObject;
+
 public class ThresholdJumpTest {
 
 	private String[] cardNames = {
@@ -32,8 +35,10 @@ public class ThresholdJumpTest {
 	public void test() throws IOException {
 		MtgStapleChecker.loadConfig();
 		MtgStapleChecker.initScript();
+		ScryfallApi scryfallApi = new ScryfallApi();
 		for(String cardName : cardNames) {
-			Map<String, String> doCard = MtgStapleChecker.doCard(cardName);
+			CardObject scryfallCard = scryfallApi.cards().cardByName(cardName, null).execute().body();
+			Map<String, String> doCard = MtgStapleChecker.doCard(scryfallCard);
 			String modern = doCard.get("modern");
 			String cardname = doCard.get("cardname");
 		}

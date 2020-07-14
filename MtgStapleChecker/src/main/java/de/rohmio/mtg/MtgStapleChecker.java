@@ -24,9 +24,9 @@ import de.rohmio.mtg.write.SqlHandler;
 import de.rohmio.scryfall.api.ScryfallApi;
 import de.rohmio.scryfall.api.model.CardFaceObject;
 import de.rohmio.scryfall.api.model.CardObject;
-import de.rohmio.scryfall.api.model.CatalogObject;
 import de.rohmio.scryfall.api.model.enums.CatalogType;
 import de.rohmio.scryfall.api.model.enums.Format;
+import de.rohmio.scryfall.api.model.enums.Layout;
 import de.rohmio.scryfall.api.model.enums.Legality;
 
 public class MtgStapleChecker {
@@ -56,18 +56,26 @@ public class MtgStapleChecker {
 		loadConfig();
 		initScript();
 
-		// get boxes
-		CatalogObject cardsCatalog = scryfallApi.catalog().getCatalog(CatalogType.CARD_NAMES).execute().body();
-		List<String> cardNames = cardsCatalog.getData();
-		log.info("Amount of cards: "+cardNames.size());
+//		List<String> q = new ArrayList<>();
+//		for(Format format : interrestingFormats) {
+//			q.add("f:"+format);
+//		}
+//		String query = String.join(" OR ", q);
+//		ListObject<CardObject> cardsInFormats = scryfallApi.cards().cards(query).execute().body();
+//		List<CardObject> cards = cardsInFormats.getData();
+		List<String> cardnames = scryfallApi.catalog().getCatalog(CatalogType.CARD_NAMES).execute().body().getData();
+		log.info("Amount of cards: "+cardnames.size());
 		
 		// filter out cards where their information is still relevant
 		List<CardStapleInfo> cardsNotNeededAnymore = ioHandler.getCardsNotNeededAnymore(startXdaysbefore / 2);
-		List<String> mapped = cardsNotNeededAnymore.stream().map(c -> c.getCardname()).collect(Collectors.toList());
-		List<String> remainingCards = cardNames.stream().filter(cn -> !mapped.contains(cn)).collect(Collectors.toList());
+		List<String> cardnamesNotNeededAnymore = cardsNotNeededAnymore.stream().map(c -> c.getCardname()).collect(Collectors.toList());
+//		List<CardObject> remainingCards = cards.stream().filter(c -> !cardnamesNotNeededAnymore.contains(c.getName())).collect(Collectors.toList());
+		List<String> remainingCards = cardnames.stream().filter(c -> !cardnamesNotNeededAnymore.contains(c)).collect(Collectors.toList());
 		
-		// go through cards in box
+		// go through each card
+		int count = 0;
 		for(String cardname : remainingCards) {
+			log.info(String.format("on card no %s of %s", ++count, remainingCards.size()));
 			try {
 				Map<String, String> values = doCard(cardname);
 				ioHandler.addDataset(values);
@@ -160,25 +168,35 @@ public class MtgStapleChecker {
 	private static String normalizeCardName(CardObject scryfallCard) {
 		String normalizedCardname = scryfallCard.getName();
 		List<CardFaceObject> card_faces = scryfallCard.getCard_faces();
-		if(card_faces != null) {
-			// TODO add fields for special cases
-			if(scryfallCard.getType_line().contains("Adventure")) {
-				normalizedCardname = card_faces.get(0).getName();
-			}
+		Layout layout = scryfallCard.getLayout();
+		// TODO add fields for special cases
+		switch (layout) {
+		case normal: case planar: case host: case vanguard: case split: case scheme: break;
+		case transform: case flip: case adventure:
+			normalizedCardname = card_faces.get(0).getName();
+			break;
+		default:
+			break;
 		}
 		return normalizedCardname;
 	}
 	
 	public static Map<String, String> doCard(String cardname) throws IOException {
 		CardObject scryfallCard = scryfallApi.cards().cardByName(cardname, null).execute().body();
-		log.info("Doing card: "+cardname);
+		return doCard(scryfallCard);
+	}
+	
+	public static Map<String, String> doCard(CardObject scryfallCard) throws IOException {
+		log.info("Doing card: "+scryfallCard);
 		
 		final Map<String, String> values = new HashMap<>();
-		values.put(FIELD_CARDNAME, cardname	);
+		values.put(FIELD_CARDNAME, scryfallCard.getName());
 		
 		List<Thread> threads = new ArrayList<>();
 		Map<Format, Legality> cardLegalities = scryfallCard.getLegalities();
 		// go through formats in which the card is legal
+		
+		String normalizedCardName = normalizeCardName(scryfallCard);
 		for(Format format : interrestingFormats) {
 			String top8FormatCode = format.getTop8Code();
 			// if this format can not be looked up on mtgtop8 skip it
@@ -194,13 +212,13 @@ public class MtgStapleChecker {
 			}
 			
 			Thread thread = new Thread(() -> {
-				log.info(String.format("Requesting from mtgtop8; Card: '%s' Format: '%s'", cardname,format));
+				log.info(String.format("Requesting from mtgtop8; Card: '%s' Format: '%s'", scryfallCard, format));
 				
 				MtgTop8Search mtgTop8Search = new MtgTop8Search();
 				mtgTop8Search.setBoard(mainboard, sideboard);
 				mtgTop8Search.setStartDate(startXdaysbefore);
 				mtgTop8Search.setEndDate(endXdaysbefore);
-				mtgTop8Search.setCards(normalizeCardName(scryfallCard));
+				mtgTop8Search.setCards(normalizedCardName);
 				mtgTop8Search.setCompLevel(compLevels);
 				
 				mtgTop8Search.setFormat(MtgTop8Format.valueOf(top8FormatCode));
@@ -233,7 +251,7 @@ public class MtgStapleChecker {
 			}
 		});
 		
-		log.info("Collected all infos about card: "+cardname);
+		log.info("Collected all infos about card: "+scryfallCard);
 
 		return values;
 	}
