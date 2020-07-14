@@ -9,6 +9,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
@@ -72,19 +74,21 @@ public class MtgStapleChecker {
 //		List<CardObject> remainingCards = cards.stream().filter(c -> !cardnamesNotNeededAnymore.contains(c.getName())).collect(Collectors.toList());
 		List<String> remainingCards = cardnames.stream().filter(c -> !cardnamesNotNeededAnymore.contains(c)).collect(Collectors.toList());
 		
-		// go through each card
-		int count = 0;
-		for(String cardname : remainingCards) {
-			log.info(String.format("on card no %s of %s", ++count, remainingCards.size()));
-			try {
-				Map<String, String> values = doCard(cardname);
-				ioHandler.addDataset(values);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
+		ExecutorService executor = Executors.newFixedThreadPool(10);
 		
-		endScript();
+		// go through each card
+		for(String cardname : remainingCards) {
+			executor.submit(() -> {
+				try {
+					Map<String, String> values = doCard(cardname);
+					ioHandler.addDataset(values);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			});
+		}
+		executor.shutdown();
+//		endScript();
 	}
 	
 	public static void initScript() throws IOException {
@@ -150,11 +154,13 @@ public class MtgStapleChecker {
 		}
 	}
 	
+	/*
 	private static void endScript() {
 		log.info("closing scryfall connection");
 		scryfallApi.close();
 		log.info("end");
 	}
+	*/
 	
 	private static void initLogger() throws SecurityException, IOException {
 		new File("logs").mkdir();
@@ -169,10 +175,18 @@ public class MtgStapleChecker {
 		String normalizedCardname = scryfallCard.getName();
 		List<CardFaceObject> card_faces = scryfallCard.getCard_faces();
 		Layout layout = scryfallCard.getLayout();
-		// TODO add fields for special cases
 		switch (layout) {
-		case normal: case planar: case host: case vanguard: case split: case scheme: break;
-		case transform: case flip: case adventure:
+		case normal:
+		case planar:
+		case host:
+		case vanguard:
+		case split:
+		case scheme:
+		case meld:
+			break;
+		case transform:
+		case flip:
+		case adventure:
 			normalizedCardname = card_faces.get(0).getName();
 			break;
 		default:
@@ -196,7 +210,6 @@ public class MtgStapleChecker {
 		Map<Format, Legality> cardLegalities = scryfallCard.getLegalities();
 		// go through formats in which the card is legal
 		
-		String normalizedCardName = normalizeCardName(scryfallCard);
 		for(Format format : interrestingFormats) {
 			String top8FormatCode = format.getTop8Code();
 			// if this format can not be looked up on mtgtop8 skip it
@@ -210,6 +223,8 @@ public class MtgStapleChecker {
 				values.put(format.name(), "-1");
 				continue;
 			}
+			
+			String normalizedCardName = normalizeCardName(scryfallCard);
 			
 			Thread thread = new Thread(() -> {
 				log.info(String.format("Requesting from mtgtop8; Card: '%s' Format: '%s'", scryfallCard, format));
@@ -239,7 +254,7 @@ public class MtgStapleChecker {
 				if(decks == null) {
 					log.warning(String.format("repeated request often enough, still no response on card: %s", Arrays.asList(mtgTop8Search.getCards())));
 				}
-			});
+			}, normalizedCardName + " in " + format);
 			threads.add(thread);
 			thread.start();
 		}

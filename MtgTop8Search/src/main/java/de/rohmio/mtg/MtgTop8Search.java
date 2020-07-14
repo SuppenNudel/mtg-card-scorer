@@ -174,7 +174,7 @@ public class MtgTop8Search {
 	
 	private List<DeckInfo> parseDocument(Document doc) {
 		String sumText = doc.select("table > tbody > tr > td > div[class=w_title]").text();
-		sumText = sumText.replace(" decks matching", "");
+		sumText = sumText.replace("decks matching", "").trim();
 		
 		int allDecksCount = Integer.parseInt(sumText);
 		this.expectedDeckCount = allDecksCount; 
