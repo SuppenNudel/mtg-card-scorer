@@ -1,5 +1,6 @@
 package de.rohmio.mtg;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -124,6 +125,12 @@ public class MtgTop8Search {
 	}
 	
 	private List<DeckInfo> getDecks(int page) throws IOException {
+		Document doc = makeRequest(page);
+		List<DeckInfo> deckInfos = parseDocument(doc);
+		return deckInfos;
+	}
+	
+	private Document makeRequest(int page) throws IOException {
 		Connection connection = Jsoup.connect("https://www.mtgtop8.com/search");
 		
 		if(format != null) {
@@ -141,7 +148,11 @@ public class MtgTop8Search {
 			}
 		}
 		if(cards != null) {
-			connection.data(f_cards, String.join(ln, cards));
+			List<String> cardnames = new ArrayList<>();
+			for(String cardname : cards) {
+				cardnames.add(URLEncoder.encode(cardname, "ISO 8859-1"));
+			}
+			connection.data(f_cards, String.join(ln, cardnames));
 		}
 		if(mainboard) {
 			connection.data(f_mainboard, "1");
@@ -153,9 +164,22 @@ public class MtgTop8Search {
 		
 //		System.out.println("Requesting page "+page);
 		Document doc = connection.post();
+		return doc;
+	}
+	
+	public int getDeckCount() throws IOException {
+		Document doc = makeRequest(0);
+		int deckCount = parseDocumentForDeckCount(doc);
+		return deckCount;
+	}
+	
+	private int parseDocumentForDeckCount(Document doc) {
+		String sumText = doc.select("table > tbody > tr > td > div[class=w_title]").text();
+		sumText = sumText.replace("decks matching", "").trim();
 		
-		List<DeckInfo> deckInfos = parseDocument(doc);
-		return deckInfos;
+		int allDecksCount = Integer.parseInt(sumText);
+		this.expectedDeckCount = allDecksCount;
+		return allDecksCount;
 	}
 	
 	public List<DeckInfo> getDecks() throws IOException {
