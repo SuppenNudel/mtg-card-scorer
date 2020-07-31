@@ -52,6 +52,7 @@ public class MtgStapleChecker {
 	private static boolean sideboard;
 	private static int startXdaysbefore;
 	private static int endXdaysbefore;
+	private static int renewXdaysbefore;
 	private static List<Legality> interrestingLegalities;
 	private static List<Format> interrestingFormats;
 	private static CompLevel[] compLevels;
@@ -65,22 +66,24 @@ public class MtgStapleChecker {
 		log.info("Total amount of cards: " + cardnames.size());
 
 		// filter out cards where their information is still relevant
-		List<CardStapleInfo> cardsNotNeededAnymore = ioHandler.getCardsNotNeededAnymore(startXdaysbefore / 2);
+		List<CardStapleInfo> cardsNotNeededAnymore = ioHandler.getCardsNotNeededAnymore(renewXdaysbefore);
 		List<String> cardnamesNotNeededAnymore = cardsNotNeededAnymore.stream().map(c -> c.getCardname())
 				.collect(Collectors.toList());
 		List<String> remainingCards = cardnames.stream().filter(c -> !cardnamesNotNeededAnymore.contains(c))
 				.collect(Collectors.toList());
 		log.info("Amount of cards to request: " + remainingCards.size());
 
-		ExecutorService executor = Executors.newFixedThreadPool(10);
+		ExecutorService executor = Executors.newFixedThreadPool(15);
 
 		// go through each card
 		CountDownLatch latch = new CountDownLatch(remainingCards.size());
 		for (String cardname : remainingCards) {
-			executor.submit(() -> {
+			executor.execute(() -> {
 				try {
 					Map<String, String> values = doCard(cardname);
-					ioHandler.addDataset(values);
+					if(values != null) {
+						ioHandler.addDataset(values);
+					}
 					latch.countDown();
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -139,6 +142,7 @@ public class MtgStapleChecker {
 			sideboard = config.getBoolean("mtgtop8.sideboard");
 			startXdaysbefore = config.getInt("mtgtop8.startXdaysbefore");
 			endXdaysbefore = config.getInt("mtgtop8.endXdaysbefore");
+			renewXdaysbefore = config.getInt("mtgtop8.renewXdaysbefore");
 
 			String[] formatsStringArray = config.getString("mtgtop8.formats").split(",");
 			interrestingFormats = new ArrayList<>();
@@ -204,14 +208,16 @@ public class MtgStapleChecker {
 	}
 
 	public static Map<String, String> doCard(String cardname) throws IOException {
-		String q = String.format("name:\"%s\"", cardname, cardname);
+		String q = String.format("!'%s'", cardname);
 		ListObject<CardObject> scryfallCards = scryfallApi.cards()
 				.cards(q, null, null, null, true, null, null, null, null, null).execute().body();
 		if (scryfallCards == null) {
 			log.severe(String.format("Card not found '%s'.", cardname));
+			return null;
 		}
 		if(scryfallCards.getTotal_cards() != 1) {
 			log.severe(String.format("Cardname '%s' is ambiguous.", cardname));
+			return null;
 		}
 		CardObject scryfallCard = scryfallCards.getData().get(0);
 		return doCard(scryfallCard);
@@ -241,6 +247,7 @@ public class MtgStapleChecker {
 				continue;
 			}
 
+			
 			String normalizedCardName = normalizeCardName(scryfallCard);
 
 			Thread thread = new Thread(() -> {

@@ -64,7 +64,7 @@
 		<dependency>
 			<groupId>MtgTop8Search</groupId>
 			<artifactId>MtgTop8Search</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
+			<version>0.0.2</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->
 		<dependency>

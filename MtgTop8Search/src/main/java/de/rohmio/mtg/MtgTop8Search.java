@@ -1,6 +1,5 @@
 package de.rohmio.mtg;
 import java.io.IOException;
-import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -132,6 +131,7 @@ public class MtgTop8Search {
 	
 	private Document makeRequest(int page) throws IOException {
 		Connection connection = Jsoup.connect("https://www.mtgtop8.com/search");
+		connection.postDataCharset("ISO-8859-1");
 		
 		if(format != null) {
 			connection.data(f_format, format.name());
@@ -150,7 +150,7 @@ public class MtgTop8Search {
 		if(cards != null) {
 			List<String> cardnames = new ArrayList<>();
 			for(String cardname : cards) {
-				cardnames.add(URLEncoder.encode(cardname, "ISO 8859-1"));
+				cardnames.add(cardname);
 			}
 			connection.data(f_cards, String.join(ln, cardnames));
 		}
@@ -162,7 +162,6 @@ public class MtgTop8Search {
 		}
 		connection.data(f_currentPage, String.valueOf(page));
 		
-//		System.out.println("Requesting page "+page);
 		Document doc = connection.post();
 		return doc;
 	}
@@ -182,13 +181,12 @@ public class MtgTop8Search {
 		return allDecksCount;
 	}
 	
+	@Deprecated
 	public List<DeckInfo> getDecks() throws IOException {
 		List<DeckInfo> allDecks = new ArrayList<>();
 		for(int page=1; expectedDeckCount == null || expectedDeckCount > allDecks.size(); ++page) {
 			List<DeckInfo> decks = getDecks(page);
 			allDecks.addAll(decks);
-//			System.out.println("Expected to have "+expectedDeckCount+" decks");
-//			System.out.println(allDecks.size()+"/"+expectedDeckCount);
 		}
 		expectedDeckCount = null;
 		return allDecks;
