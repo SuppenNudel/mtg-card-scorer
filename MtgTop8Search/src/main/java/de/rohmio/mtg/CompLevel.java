@@ -3,9 +3,9 @@ package de.rohmio.mtg;
 public enum CompLevel {
 	
 	Regular("R", 1),
-	Competitive("C", 2),
-	Major("M", 3),
-	Professional("P", 5);
+	Competitive("C", 5),
+	Major("M", 20),
+	Professional("P", 100);
 	
 	private String top8Code;
 	private int factor;
