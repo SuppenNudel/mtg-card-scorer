@@ -60,6 +60,10 @@ public class CsvHandler implements IOHandler {
 	}
 
 	@Override
+	public void close() {}
+
+
+	@Override
 	public void addDataset(Map<String, String> values) throws IOException {
 		values.put(MtgStapleChecker.FIELD_TIMESTAMP, Calendar.getInstance().getTime().toString());
 		StringBuilder sb_line = new StringBuilder();
@@ -88,5 +92,4 @@ public class CsvHandler implements IOHandler {
 	public List<CardStapleInfo> getCardsNotNeededAnymore(int daysAgo) {
 		throw new RuntimeException("Not yet implemented");
 	}
-
 }

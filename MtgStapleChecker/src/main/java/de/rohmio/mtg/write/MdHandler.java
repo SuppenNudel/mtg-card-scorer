@@ -65,4 +65,7 @@ public class MdHandler implements IOHandler {
 		throw new RuntimeException("Not yet implemented");
 	}
 
+	@Override
+	public void close() {}
+
 }

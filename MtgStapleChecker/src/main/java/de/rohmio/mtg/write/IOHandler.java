@@ -12,5 +12,6 @@ public interface IOHandler {
 	public void addDataset(Map<String, String> values) throws IOException;
 	public CardStapleInfo getCardStapleInfo(String cardname);
 	public List<CardStapleInfo> getCardsNotNeededAnymore(int daysAgo);
+	public void close();
 	
 }

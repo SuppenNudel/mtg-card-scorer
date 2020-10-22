@@ -66,6 +66,11 @@ public class SqlHandler implements IOHandler {
 			System.exit(1);
 		}
 	}
+	
+	@Override
+	public void close() {
+		context.close();
+	}
 
 	@Override
 	public void addDataset(Map<String, String> values) throws IOException {
