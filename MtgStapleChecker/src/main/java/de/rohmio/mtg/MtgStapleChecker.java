@@ -80,7 +80,16 @@ public class MtgStapleChecker {
 		for (String cardname : remainingCards) {
 			executor.execute(() -> {
 				try {
-					Map<String, String> values = doCard(cardname);
+					CardObject scryfallCard = getScryfallCard(cardname);
+					System.out.println(scryfallCard);
+					if(scryfallCard == null) {
+						return;
+					}
+					if(scryfallCard.getLayout() == Layout.meld) {
+						// do not analyze meld cards
+						return;
+					}
+					Map<String, String> values = doCard(scryfallCard);
 					if(values != null) {
 						ioHandler.addDataset(values);
 					}
@@ -111,7 +120,7 @@ public class MtgStapleChecker {
 		scryfallApi.close();
 	}
 
-	public static void initScript() throws IOException {
+	public static SqlHandler initScript() throws IOException {
 		formats = Arrays.asList(Format.values()).stream().filter(f -> interrestingFormats.contains(f))
 				.filter(f -> f.getTop8Code() != null).map(f -> f.name()).collect(Collectors.toList());
 
@@ -130,6 +139,8 @@ public class MtgStapleChecker {
 		log.info(String.format("Using %s as ioHandler", ioHandler));
 
 		scryfallApi = new ScryfallApi();
+		
+		return sqlHandler;
 	}
 
 	public static void loadConfig() {
@@ -194,8 +205,10 @@ public class MtgStapleChecker {
 		case vanguard:
 		case split:
 		case scheme:
-		case meld:
 			break;
+		case meld:
+			throw new RuntimeException("Meld cards should not get analyzed");
+		case modal_dfc:
 		case transform:
 		case flip:
 		case adventure:
@@ -207,20 +220,20 @@ public class MtgStapleChecker {
 		return normalizedCardname;
 	}
 
-	public static Map<String, String> doCard(String cardname) throws IOException {
-		String q = String.format("!'%s'", cardname);
-		ListObject<CardObject> scryfallCards = scryfallApi.cards()
-				.cards(q, null, null, null, true, null, null, null, null, null).execute().body();
-		if (scryfallCards == null) {
-			log.severe(String.format("Card not found '%s'.", cardname));
+	public static CardObject getScryfallCard(String cardname) throws IOException {
+		String q = String.format("!\"%s\" lang:en -set_type:memorabilia -set_type:funny -type:token", cardname);
+		ListObject<CardObject> foundCards = scryfallApi.cards()
+				.search(q, null, null, null, true, null, null, null, null, null).execute().body();
+		if (foundCards == null) {
+			log.severe(String.format("Card not found '%s'. Might be a 'funny' card.", cardname));
 			return null;
 		}
-		if(scryfallCards.getTotal_cards() != 1) {
+		if(foundCards.getTotal_cards() != 1) {
 			log.severe(String.format("Cardname '%s' is ambiguous.", cardname));
 			return null;
 		}
-		CardObject scryfallCard = scryfallCards.getData().get(0);
-		return doCard(scryfallCard);
+		CardObject scryfallCard = foundCards.getData().get(0);
+		return scryfallCard;
 	}
 
 	public static Map<String, String> doCard(CardObject scryfallCard) throws IOException {
