@@ -20,6 +20,13 @@ public class RequestTest {
 	}
 	
 	@Test
+	public void noCardnameTest() throws IOException {
+		int deckCount = mtgTop8Search.getDeckCount();
+		Assert.assertEquals(0, deckCount);
+	}
+	
+	
+	@Test
 	public void normalTest() throws IOException {
 		mtgTop8Search.setCards("Abrade");
 		int deckCount = mtgTop8Search.getDeckCount();
@@ -35,14 +42,14 @@ public class RequestTest {
 	
 	@Test
 	public void umlautTest() throws IOException {
-		mtgTop8Search.setCards("Jötun Grunt");
+		mtgTop8Search.setCards("JÃ¶tun Grunt");
 		int deckCount = mtgTop8Search.getDeckCount();
 		Assert.assertEquals(2, deckCount);
 	}
 	
 	@Test
 	public void aeTest() throws IOException {
-		mtgTop8Search.setCards("Æther Adept");
+		mtgTop8Search.setCards("Ã†ther Adept");
 		int deckCount = mtgTop8Search.getDeckCount();
 		Assert.assertEquals(22, deckCount);
 	}
