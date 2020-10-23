@@ -68,11 +68,6 @@ public class SqlHandler implements IOHandler {
 	}
 	
 	@Override
-	public void close() {
-		context.close();
-	}
-
-	@Override
 	public void addDataset(Map<String, String> values) throws IOException {
 		Map<Field<Object>, Object> setMap = new HashMap<>();
 		for(String key : values.keySet()) {
