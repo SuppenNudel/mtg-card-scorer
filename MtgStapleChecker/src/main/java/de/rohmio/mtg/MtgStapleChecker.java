@@ -133,9 +133,9 @@ public class MtgStapleChecker {
 		SqlHandler sqlHandler = new SqlHandler(config.getString("database.host"), config.getInt("database.port"),
 				config.getString("database.user"), config.getString("database.password", "secret"),
 				config.getString("database.database"), config.getString("database.table"));
-		sqlHandler.init(fields);
 
 		ioHandler = sqlHandler;
+		ioHandler.init(fields);
 		log.info(String.format("Using %s as ioHandler", ioHandler));
 
 		scryfallApi = new ScryfallApi();
