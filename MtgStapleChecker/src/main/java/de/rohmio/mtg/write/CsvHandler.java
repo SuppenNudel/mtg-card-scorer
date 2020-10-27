@@ -60,7 +60,12 @@ public class CsvHandler implements IOHandler {
 	}
 
 	@Override
-	public void addDataset(Map<String, String> values) throws IOException {
+	public void addDataset(CardStapleInfo cardStapleInfo) throws IOException {
+		Map<String, String> values = new HashMap<>();
+		values.put(MtgStapleChecker.FIELD_CARDNAME, cardStapleInfo.getCardname());
+		for(Format format : cardStapleInfo.getFormatScores().keySet()) {
+			values.put(format.name(), String.valueOf(cardStapleInfo.getFormatScore(format)));
+		}
 		values.put(MtgStapleChecker.FIELD_TIMESTAMP, Calendar.getInstance().getTime().toString());
 		StringBuilder sb_line = new StringBuilder();
 		for (String title : titles) {
@@ -76,7 +81,7 @@ public class CsvHandler implements IOHandler {
 		System.out.println(String.format("Writing in '%s': %s", file.getName(), sb_line));
 		FileUtils.writeStringToFile(file, line + ln, "UTF-8", true);
 		
-		data.put(values.get(MtgStapleChecker.FIELD_CARDNAME), new CardStapleInfo());
+		data.put(values.get(MtgStapleChecker.FIELD_CARDNAME), cardStapleInfo);
 	}
 
 	@Override

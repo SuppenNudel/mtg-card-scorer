@@ -3,6 +3,7 @@ package de.rohmio.mtg.write;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -40,7 +41,11 @@ public class MdHandler implements IOHandler {
 	}
 
 	@Override
-	public void addDataset(Map<String, String> values) throws IOException {
+	public void addDataset(CardStapleInfo cardStapleInfo) throws IOException {
+		if(true) {
+			throw new RuntimeException("Not implemented");
+		}
+		Map<String, String> values = new HashMap<>();
 		StringBuilder sb_line = new StringBuilder();
 		for (String title : titles) {
 			String value = values.get(title);

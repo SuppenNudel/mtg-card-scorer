@@ -1,6 +1,10 @@
 package de.rohmio.mtg.model;
 
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
+
+import de.rohmio.scryfall.api.model.enums.Format;
 
 public class CardStapleInfo {
 	
@@ -13,6 +17,17 @@ public class CardStapleInfo {
 	private Integer pauper;
 	private Integer vintage;
 	private Integer commander;
+	
+	private Map<Format, Integer> formatScores = new HashMap<>();
+	
+	public CardStapleInfo(String cardname) {
+		this.cardname = cardname;
+	}
+	
+	@Override
+	public String toString() {
+		return cardname;
+	}
 
 	public boolean anyIsNull() {
 		return standard == null
@@ -22,6 +37,18 @@ public class CardStapleInfo {
 				|| pauper == null
 				|| vintage == null
 				|| commander == null;
+	}
+
+	public void setFormatScore(Format format, int score) {
+		formatScores.put(format, score);
+	}
+	
+	public int getFormatScore(Format format) {
+		return formatScores.get(format);
+	}
+	
+	public Map<Format, Integer> getFormatScores() {
+		return formatScores;
 	}
 	
 	public String getCardname() {
@@ -36,64 +63,4 @@ public class CardStapleInfo {
 		this.timestamp = timestamp;
 	}
 
-	public Integer getStandard() {
-		return standard;
-	}
-
-	public void setStandard(Integer standard) {
-		this.standard = standard;
-	}
-
-	public Integer getPioneer() {
-		return pioneer;
-	}
-
-	public void setPioneer(Integer pioneer) {
-		this.pioneer = pioneer;
-	}
-
-	public Integer getModern() {
-		return modern;
-	}
-
-	public void setModern(Integer modern) {
-		this.modern = modern;
-	}
-
-	public Integer getLegacy() {
-		return legacy;
-	}
-
-	public void setLegacy(Integer legacy) {
-		this.legacy = legacy;
-	}
-
-	public Integer getPauper() {
-		return pauper;
-	}
-
-	public void setPauper(Integer pauper) {
-		this.pauper = pauper;
-	}
-
-	public Integer getVintage() {
-		return vintage;
-	}
-
-	public void setVintage(Integer vintage) {
-		this.vintage = vintage;
-	}
-
-	public Integer getCommander() {
-		return commander;
-	}
-
-	public void setCommander(Integer commander) {
-		this.commander = commander;
-	}
-
-	public void setCardname(String cardname) {
-		this.cardname = cardname;
-	}
-	
 }

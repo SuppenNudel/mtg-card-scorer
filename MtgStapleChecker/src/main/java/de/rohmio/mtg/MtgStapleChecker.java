@@ -6,7 +6,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -23,8 +22,8 @@ import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import de.rohmio.mtg.model.CardStapleInfo;
+import de.rohmio.mtg.write.GoogleSheetsHandler;
 import de.rohmio.mtg.write.IOHandler;
-import de.rohmio.mtg.write.SqlHandler;
 import de.rohmio.scryfall.api.ScryfallApi;
 import de.rohmio.scryfall.api.model.CardFaceObject;
 import de.rohmio.scryfall.api.model.CardObject;
@@ -73,7 +72,7 @@ public class MtgStapleChecker {
 				.collect(Collectors.toList());
 		log.info("Amount of cards to request: " + remainingCards.size());
 
-		ExecutorService executor = Executors.newFixedThreadPool(15);
+		ExecutorService executor = Executors.newFixedThreadPool(20);
 
 		// go through each card
 		CountDownLatch latch = new CountDownLatch(remainingCards.size());
@@ -89,9 +88,9 @@ public class MtgStapleChecker {
 						// do not analyze meld cards
 						return;
 					}
-					Map<String, String> values = doCard(scryfallCard);
-					if(values != null) {
-						ioHandler.addDataset(values);
+					CardStapleInfo cardStapleInfo = doCard(scryfallCard);
+					if(cardStapleInfo != null) {
+						ioHandler.addDataset(cardStapleInfo);
 					}
 					latch.countDown();
 				} catch (IOException e) {
@@ -120,7 +119,7 @@ public class MtgStapleChecker {
 		scryfallApi.close();
 	}
 
-	public static SqlHandler initScript() throws IOException {
+	public static IOHandler initScript() throws IOException {
 		formats = Arrays.asList(Format.values()).stream().filter(f -> interrestingFormats.contains(f))
 				.filter(f -> f.getTop8Code() != null).map(f -> f.name()).collect(Collectors.toList());
 
@@ -130,17 +129,18 @@ public class MtgStapleChecker {
 
 //		CsvHandler csvHandler = new CsvHandler(new File("results/competitive_score.csv"));
 //		csvHandler.init(fields);
-		SqlHandler sqlHandler = new SqlHandler(config.getString("database.host"), config.getInt("database.port"),
-				config.getString("database.user"), config.getString("database.password", "secret"),
-				config.getString("database.database"), config.getString("database.table"));
+//		SqlHandler sqlHandler = new SqlHandler(config.getString("database.host"), config.getInt("database.port"),
+//				config.getString("database.user"), config.getString("database.password", "secret"),
+//				config.getString("database.database"), config.getString("database.table"));
+		GoogleSheetsHandler googleSheetsHandler = new GoogleSheetsHandler();
 
-		ioHandler = sqlHandler;
+		ioHandler = googleSheetsHandler;
 		ioHandler.init(fields);
 		log.info(String.format("Using %s as ioHandler", ioHandler));
 
 		scryfallApi = new ScryfallApi();
 		
-		return sqlHandler;
+		return ioHandler;
 	}
 
 	public static void loadConfig() {
@@ -221,7 +221,7 @@ public class MtgStapleChecker {
 	}
 
 	public static CardObject getScryfallCard(String cardname) throws IOException {
-		String q = String.format("!\"%s\" lang:en -set_type:memorabilia -set_type:funny -type:token", cardname);
+		String q = String.format("!\"%s\" lang:en -set_type:memorabilia -set_type:funny -layout:scheme -layout:planar -layout:vanguard -type:token", cardname);
 		ListObject<CardObject> foundCards = scryfallApi.cards()
 				.search(q, null, null, null, true, null, null, null, null, null).execute().body();
 		if (foundCards == null) {
@@ -236,11 +236,10 @@ public class MtgStapleChecker {
 		return scryfallCard;
 	}
 
-	public static Map<String, String> doCard(CardObject scryfallCard) throws IOException {
+	public static CardStapleInfo doCard(CardObject scryfallCard) throws IOException {
 		log.info("Doing card: " + scryfallCard);
 
-		final Map<String, String> values = new HashMap<>();
-		values.put(FIELD_CARDNAME, scryfallCard.getName());
+		CardStapleInfo cardStapleInfo = new CardStapleInfo(scryfallCard.getName());
 
 		List<Thread> threads = new ArrayList<>();
 		Map<Format, Legality> cardLegalities = scryfallCard.getLegalities();
@@ -256,7 +255,7 @@ public class MtgStapleChecker {
 			Legality legality = cardLegalities.get(format);
 			// if card is not legal in this format skip it
 			if (!interrestingLegalities.contains(legality)) {
-				values.put(format.name(), "-1");
+				cardStapleInfo.setFormatScore(format, -1);
 				continue;
 			}
 
@@ -281,7 +280,7 @@ public class MtgStapleChecker {
 							log.info(String.format("Requesting from mtgtop8; Card: '%s' Format: '%s'; CompLevel: '%s'",
 									scryfallCard, format, compLevel));
 							int deckCount = mtgTop8Search.getDeckCount();
-							values.put(format.name(), String.valueOf(deckCount * compLevel.getFactor()));
+							cardStapleInfo.setFormatScore(format, deckCount * compLevel.getFactor());
 							successful = true;
 						} catch (IOException e) {
 							// repeat
@@ -308,7 +307,7 @@ public class MtgStapleChecker {
 
 		log.info("Collected all infos about card: " + scryfallCard);
 
-		return values;
+		return cardStapleInfo;
 	}
 
 }

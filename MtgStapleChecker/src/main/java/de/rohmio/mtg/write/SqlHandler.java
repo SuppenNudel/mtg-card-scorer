@@ -36,7 +36,7 @@ public class SqlHandler implements IOHandler {
 	private String database;
 	private String table;
 
-	private DSLContext context;
+	private String url;
 	
 	public SqlHandler(String host, int port, String user, String password, String database, String table) {
 		this.host = host;
@@ -54,21 +54,28 @@ public class SqlHandler implements IOHandler {
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		} 
-		String url = String.format("jdbc:mysql://%s:%s/%s?serverTimezone=GMT", host, port, database);
-
+		url = String.format("jdbc:mysql://%s:%s/%s?serverTimezone=GMT", host, port, database);
+	}
+	
+	private Connection openConnection() {
 		// Connection is the only JDBC resource that we need
 		// PreparedStatement and ResultSet are handled by jOOQ, internally
 		try {
 			Connection connection = DriverManager.getConnection(url, user, password);
-			context = DSL.using(connection, SQLDialect.MYSQL);
+			return connection;
 		} catch (SQLException e) {
 			e.printStackTrace();
 			System.exit(1);
 		}
+		return null;
 	}
 	
 	@Override
-	public void addDataset(Map<String, String> values) throws IOException {
+	public void addDataset(CardStapleInfo cardStapleInfo) throws IOException {
+		if(true) {
+			throw new RuntimeException("Not implemented");
+		}
+		Map<String, String> values = new HashMap<>();
 		Map<Field<Object>, Object> setMap = new HashMap<>();
 		for(String key : values.keySet()) {
 			String value = values.get(key);
@@ -82,22 +89,34 @@ public class SqlHandler implements IOHandler {
 		@SuppressWarnings("unchecked")
 		Field<Object>[] fieldsArr = setMap.keySet().toArray(new Field[setMap.size()]);
 		Object[] valuesArr = setMap.values().toArray(new Object[setMap.size()]);
-		synchronized (context) {
-			InsertOnDuplicateSetMoreStep<Record> call = context.insertInto(table(table), fieldsArr).values(valuesArr).onDuplicateKeyUpdate().set(setMap);
-			try {
-				call.execute();
-			} catch (Exception e) {
-				log.severe("Sql statement failed: "+call.toString());
-				e.printStackTrace();
-			}
+		Connection conn = openConnection();
+		DSLContext context = DSL.using(conn, SQLDialect.MYSQL);
+		InsertOnDuplicateSetMoreStep<Record> call = context.insertInto(table(table), fieldsArr).values(valuesArr).onDuplicateKeyUpdate().set(setMap);
+		try {
+			call.execute();
+		} catch (Exception e) {
+			log.severe("Sql statement failed: "+call.toString());
+			e.printStackTrace();
+		}
+		try {
+			conn.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
 	}
 	
 	@Override
 	public CardStapleInfo getCardStapleInfo(String cardname) {
+		Connection conn = openConnection();
+		DSLContext context = DSL.using(conn, SQLDialect.MYSQL);
 		CardStapleInfo cardStapleInfo = context.selectFrom(table)
 				.where(field(MtgStapleChecker.FIELD_CARDNAME)
 				.eq(cardname)).fetchOneInto(CardStapleInfo.class);
+		try {
+			conn.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
 		return cardStapleInfo;
 	}
 	
@@ -111,10 +130,17 @@ public class SqlHandler implements IOHandler {
 		Calendar calendar = Calendar.getInstance();
 		calendar.add(Calendar.DAY_OF_YEAR, -daysAgo);
 		conditions.add(field(MtgStapleChecker.FIELD_TIMESTAMP).greaterThan(calendar.getTime()));
+		Connection conn = openConnection();
+		DSLContext context = DSL.using(conn, SQLDialect.MYSQL);
 		List<CardStapleInfo> cardstapleinfos = context
 				.selectFrom(table)
 				.where(conditions)
 				.fetchInto(CardStapleInfo.class);
+		try {
+			conn.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
 		return cardstapleinfos;
 	}
 

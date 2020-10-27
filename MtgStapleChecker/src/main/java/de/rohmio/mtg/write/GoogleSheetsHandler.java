@@ -1,13 +1,23 @@
 package de.rohmio.mtg.write;
 
+import static org.jooq.impl.DSL.field;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.http.client.utils.DateUtils;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
@@ -21,8 +31,11 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
+import com.google.api.services.sheets.v4.model.ValueRange;
 
+import de.rohmio.mtg.MtgStapleChecker;
 import de.rohmio.mtg.model.CardStapleInfo;
+import de.rohmio.scryfall.api.model.enums.Format;
 
 public class GoogleSheetsHandler implements IOHandler {
 	
@@ -33,10 +46,17 @@ public class GoogleSheetsHandler implements IOHandler {
     private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
 	
+    private static final String spreadsheetId = "17ZRWv6ith2ewTntSmysnxZZ0aa_7f8B_9upne8srIkU";
+    
+    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy");
+	
 	private Sheets service;
-
+	
+	private List<String> titles;
+	
 	@Override
 	public void init(List<String> titles) throws IOException {
+		this.titles = titles;
         // Build a new authorized API client service.
 		try {
 			NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
@@ -54,7 +74,7 @@ public class GoogleSheetsHandler implements IOHandler {
      * @return An authorized Credential object.
      * @throws IOException If the credentials.json file cannot be found.
      */
-    protected static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
+    private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
         // Load client secrets.
         InputStream in = GoogleSheetsHandler.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
         if (in == null) {
@@ -71,11 +91,26 @@ public class GoogleSheetsHandler implements IOHandler {
         LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
         return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
     }
-
+    
 	@Override
-	public void addDataset(Map<String, String> values) throws IOException {
-		// TODO Auto-generated method stub
-		
+	public void addDataset(CardStapleInfo cardStapleInfo) throws IOException {
+		String timestamp = dateFormat.format(new Date());
+		List<List<Object>> writeValues = Arrays.asList(
+				Arrays.asList(
+						cardStapleInfo.getCardname(),
+						cardStapleInfo.getFormatScore(Format.pioneer),
+						cardStapleInfo.getFormatScore(Format.modern),
+						cardStapleInfo.getFormatScore(Format.legacy),
+						timestamp
+				)
+				// Additional rows ...
+		);
+		ValueRange body = new ValueRange()
+			.setValues(writeValues);
+		service.spreadsheets().values().append(spreadsheetId, "Scores", body)
+				.setValueInputOption("USER_ENTERED")
+				.execute();
+		System.out.println("Added dataset to spreadsheet: "+cardStapleInfo);
 	}
 
 	@Override
@@ -86,8 +121,32 @@ public class GoogleSheetsHandler implements IOHandler {
 
 	@Override
 	public List<CardStapleInfo> getCardsNotNeededAnymore(int daysAgo) {
-		// TODO Auto-generated method stub
-		return null;
+		List<CardStapleInfo> cardStapleInfos = new ArrayList<>();
+		try {
+			ValueRange result = service.spreadsheets().values().get(spreadsheetId, "A1:E10000").execute();
+			List<List<Object>> values = result.getValues();
+			values.remove(0);
+
+			Calendar then = Calendar.getInstance();
+			Calendar threshold = Calendar.getInstance();
+			threshold.add(Calendar.DAY_OF_YEAR, -daysAgo);
+			for(List<Object> row : values) {
+				String cardname = (String) row.get(0);
+				String timestamp = (String) row.get(4);
+				try {
+					Date parsed = dateFormat.parse(timestamp);
+					then.setTime(parsed);
+					if(then.after(threshold)) {
+						cardStapleInfos.add(new CardStapleInfo(cardname));
+					}
+				} catch (ParseException e) {
+					e.printStackTrace();
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return cardStapleInfos;
 	}
 	
 }
