@@ -22,8 +22,8 @@ import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import de.rohmio.mtg.model.CardStapleInfo;
-import de.rohmio.mtg.write.GoogleSheetsHandler;
 import de.rohmio.mtg.write.IOHandler;
+import de.rohmio.mtg.write.SqlHandler;
 import de.rohmio.scryfall.api.ScryfallApi;
 import de.rohmio.scryfall.api.model.CardFaceObject;
 import de.rohmio.scryfall.api.model.CardObject;
@@ -61,7 +61,7 @@ public class MtgStapleChecker {
 		loadConfig();
 		initScript();
 
-		List<String> cardnames = scryfallApi.catalog().getCatalog(CatalogType.CARD_NAMES).execute().body().getData();
+		List<String> cardnames = scryfallApi.execCall(scryfallApi.catalog().getCatalog(CatalogType.CARD_NAMES)).getData();
 		log.info("Total amount of cards: " + cardnames.size());
 
 		// filter out cards where their information is still relevant
@@ -81,16 +81,11 @@ public class MtgStapleChecker {
 				try {
 					CardObject scryfallCard = getScryfallCard(cardname);
 					System.out.println(scryfallCard);
-					if(scryfallCard == null) {
-						return;
-					}
-					if(scryfallCard.getLayout() == Layout.meld) {
-						// do not analyze meld cards
-						return;
-					}
-					CardStapleInfo cardStapleInfo = doCard(scryfallCard);
-					if(cardStapleInfo != null) {
-						ioHandler.addDataset(cardStapleInfo);
+					if(shouldDoCard(scryfallCard)) {
+						CardStapleInfo cardStapleInfo = doCard(scryfallCard);
+						if(cardStapleInfo != null) {
+							ioHandler.addDataset(cardStapleInfo);
+						}
 					}
 					latch.countDown();
 				} catch (IOException e) {
@@ -118,6 +113,17 @@ public class MtgStapleChecker {
 	private static void endScript() {
 		scryfallApi.close();
 	}
+	
+	private static boolean shouldDoCard(CardObject scryfallCard) {
+		if(scryfallCard == null) {
+			return false;
+		}
+		if(scryfallCard.getLayout() == Layout.meld) {
+			// do not analyze meld cards
+			return false;
+		}
+		return true;
+	}
 
 	public static IOHandler initScript() throws IOException {
 		formats = Arrays.asList(Format.values()).stream().filter(f -> interrestingFormats.contains(f))
@@ -129,12 +135,12 @@ public class MtgStapleChecker {
 
 //		CsvHandler csvHandler = new CsvHandler(new File("results/competitive_score.csv"));
 //		csvHandler.init(fields);
-//		SqlHandler sqlHandler = new SqlHandler(config.getString("database.host"), config.getInt("database.port"),
-//				config.getString("database.user"), config.getString("database.password", "secret"),
-//				config.getString("database.database"), config.getString("database.table"));
-		GoogleSheetsHandler googleSheetsHandler = new GoogleSheetsHandler();
+		SqlHandler sqlHandler = new SqlHandler(config.getString("database.host"), config.getInt("database.port"),
+				config.getString("database.user"), config.getString("database.password", "secret"),
+				config.getString("database.database"), config.getString("database.table"));
+//		GoogleSheetsHandler googleSheetsHandler = new GoogleSheetsHandler();
 
-		ioHandler = googleSheetsHandler;
+		ioHandler = sqlHandler;
 		ioHandler.init(fields);
 		log.info(String.format("Using %s as ioHandler", ioHandler));
 
@@ -222,8 +228,8 @@ public class MtgStapleChecker {
 
 	public static CardObject getScryfallCard(String cardname) throws IOException {
 		String q = String.format("!\"%s\" lang:en -set_type:memorabilia -set_type:funny -layout:scheme -layout:planar -layout:vanguard -type:token", cardname);
-		ListObject<CardObject> foundCards = scryfallApi.cards()
-				.search(q, null, null, null, true, null, null, null, null, null).execute().body();
+		ListObject<CardObject> foundCards = scryfallApi.execCall(scryfallApi.cards()
+				.search(q, null, null, null, true, null, null, null, null, null));
 		if (foundCards == null) {
 			log.severe(String.format("Card not found '%s'. Might be a 'funny' card.", cardname));
 			return null;
@@ -259,23 +265,23 @@ public class MtgStapleChecker {
 				continue;
 			}
 
+			for (CompLevel compLevel : compLevels) {
 			
-			String normalizedCardName = normalizeCardName(scryfallCard);
-
-			Thread thread = new Thread(() -> {
-				MtgTop8Search mtgTop8Search = new MtgTop8Search();
-				mtgTop8Search.setBoard(mainboard, sideboard);
-				mtgTop8Search.setStartDate(startXdaysbefore);
-				mtgTop8Search.setEndDate(endXdaysbefore);
-				mtgTop8Search.setCards(normalizedCardName);
-				mtgTop8Search.setCompLevel(compLevels);
-
-				mtgTop8Search.setFormat(MtgTop8Format.valueOf(top8FormatCode));
-
-				// repeat request for as long as it fails
-				boolean successful = false;
-				for (int tryNo = 0; tryNo <= 3 && !successful; ++tryNo) {
-					for (CompLevel compLevel : compLevels) {
+				String normalizedCardName = normalizeCardName(scryfallCard);
+	
+				Thread thread = new Thread(() -> {
+					MtgTop8Search mtgTop8Search = new MtgTop8Search();
+					mtgTop8Search.setBoard(mainboard, sideboard);
+					mtgTop8Search.setStartDate(startXdaysbefore);
+					mtgTop8Search.setEndDate(endXdaysbefore);
+					mtgTop8Search.setCards(normalizedCardName);
+					mtgTop8Search.setCompLevel(compLevels);
+	
+					mtgTop8Search.setFormat(MtgTop8Format.valueOf(top8FormatCode));
+	
+					// repeat request for as long as it fails
+					boolean successful = false;
+					for (int tryNo = 0; tryNo <= 3 && !successful; ++tryNo) {
 						try {
 							log.info(String.format("Requesting from mtgtop8; Card: '%s' Format: '%s'; CompLevel: '%s'",
 									scryfallCard, format, compLevel));
@@ -288,14 +294,14 @@ public class MtgStapleChecker {
 									Arrays.asList(mtgTop8Search.getCards()), tryNo));
 						}
 					}
-				}
-				if (!successful) {
-					log.warning(String.format("repeated request often enough, still no response on card: %s",
-							Arrays.asList(mtgTop8Search.getCards())));
-				}
-			}, normalizedCardName + " in " + format);
-			threads.add(thread);
-			thread.start();
+					if (!successful) {
+						log.warning(String.format("repeated request often enough, still no response on card: %s",
+								Arrays.asList(mtgTop8Search.getCards())));
+					}
+				}, normalizedCardName + " in " + format);
+				threads.add(thread);
+				thread.start();
+			}
 		}
 		threads.forEach(t -> {
 			try {
