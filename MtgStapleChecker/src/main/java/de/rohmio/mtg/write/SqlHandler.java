@@ -130,14 +130,14 @@ public class SqlHandler implements IOHandler {
 		Calendar calendar = Calendar.getInstance();
 		calendar.add(Calendar.DAY_OF_YEAR, -daysAgo);
 		conditions.add(field(MtgStapleChecker.FIELD_TIMESTAMP).greaterThan(calendar.getTime()));
-		Connection conn = openConnection();
-		DSLContext context = DSL.using(conn, SQLDialect.MYSQL);
+		Connection connection = openConnection();
+		DSLContext context = DSL.using(connection, SQLDialect.MYSQL);
 		List<CardStapleInfo> cardstapleinfos = context
 				.selectFrom(table)
 				.where(conditions)
 				.fetchInto(CardStapleInfo.class);
 		try {
-			conn.close();
+			connection.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

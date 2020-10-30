@@ -10,47 +10,41 @@ public class CardStapleInfo {
 	
 	private String cardname;
 	private Calendar timestamp;
-	private Integer standard;
-	private Integer pioneer;
-	private Integer modern;
-	private Integer legacy;
-	private Integer pauper;
-	private Integer vintage;
-	private Integer commander;
-	
 	private Map<Format, Integer> formatScores = new HashMap<>();
 	
 	public CardStapleInfo(String cardname) {
 		this.cardname = cardname;
 	}
 	
+	protected CardStapleInfo(String cardname, Calendar timestamp, int standard, int pioneer, int modern, int legacy, int pauper, int vintage, int commander) {
+		this(cardname);
+		this.timestamp = timestamp;
+		formatScores.put(Format.standard, standard);
+		formatScores.put(Format.pioneer, pioneer);
+		formatScores.put(Format.modern, modern);
+		formatScores.put(Format.legacy, legacy);
+		formatScores.put(Format.pauper, pauper);
+		formatScores.put(Format.vintage, vintage);
+		formatScores.put(Format.commander, commander);
+	}
+
 	@Override
 	public String toString() {
 		return cardname;
 	}
 
 	public boolean anyIsNull() {
-		return standard == null
-				|| pioneer == null
-				|| modern == null
-				|| legacy == null
-				|| pauper == null
-				|| vintage == null
-				|| commander == null;
+		return formatScores.values().stream().anyMatch(score -> score == null);
 	}
 
 	public void setFormatScore(Format format, int score) {
 		formatScores.put(format, score);
 	}
-	
+
 	public int getFormatScore(Format format) {
 		return formatScores.get(format);
 	}
-	
-	public Map<Format, Integer> getFormatScores() {
-		return formatScores;
-	}
-	
+
 	public String getCardname() {
 		return cardname;
 	}

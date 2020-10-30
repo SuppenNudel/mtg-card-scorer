@@ -63,7 +63,7 @@ public class CsvHandler implements IOHandler {
 	public void addDataset(CardStapleInfo cardStapleInfo) throws IOException {
 		Map<String, String> values = new HashMap<>();
 		values.put(MtgStapleChecker.FIELD_CARDNAME, cardStapleInfo.getCardname());
-		for(Format format : cardStapleInfo.getFormatScores().keySet()) {
+		for(Format format : Format.values()) {
 			values.put(format.name(), String.valueOf(cardStapleInfo.getFormatScore(format)));
 		}
 		values.put(MtgStapleChecker.FIELD_TIMESTAMP, Calendar.getInstance().getTime().toString());
