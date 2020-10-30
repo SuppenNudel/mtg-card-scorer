@@ -28,7 +28,6 @@ import de.rohmio.scryfall.api.ScryfallApi;
 import de.rohmio.scryfall.api.model.CardFaceObject;
 import de.rohmio.scryfall.api.model.CardObject;
 import de.rohmio.scryfall.api.model.ListObject;
-import de.rohmio.scryfall.api.model.enums.CatalogType;
 import de.rohmio.scryfall.api.model.enums.Format;
 import de.rohmio.scryfall.api.model.enums.Layout;
 import de.rohmio.scryfall.api.model.enums.Legality;
@@ -43,7 +42,6 @@ public class MtgStapleChecker {
 	public static final String FIELD_TIMESTAMP = "timestamp";
 	private static IOHandler ioHandler;
 
-	private static ScryfallApi scryfallApi;
 	public static List<String> formats;
 
 	// mtgtop8 parameters
@@ -61,7 +59,7 @@ public class MtgStapleChecker {
 		loadConfig();
 		initScript();
 
-		List<String> cardnames = scryfallApi.execCall(scryfallApi.catalog().getCatalog(CatalogType.CARD_NAMES)).getData();
+		List<String> cardnames = ScryfallApi.cardNames().get().getData();
 		log.info("Total amount of cards: " + cardnames.size());
 
 		// filter out cards where their information is still relevant
@@ -95,7 +93,6 @@ public class MtgStapleChecker {
 		}
 		latch.await();
 		awaitTerminationAfterShutdown(executor);
-		endScript();
 	}
 	
 	public static void awaitTerminationAfterShutdown(ExecutorService threadPool) {
@@ -108,10 +105,6 @@ public class MtgStapleChecker {
 	        threadPool.shutdownNow();
 	        Thread.currentThread().interrupt();
 	    }
-	}
-	
-	private static void endScript() {
-		scryfallApi.close();
 	}
 	
 	private static boolean shouldDoCard(CardObject scryfallCard) {
@@ -144,8 +137,6 @@ public class MtgStapleChecker {
 		ioHandler.init(fields);
 		log.info(String.format("Using %s as ioHandler", ioHandler));
 
-		scryfallApi = new ScryfallApi();
-		
 		return ioHandler;
 	}
 
@@ -227,9 +218,8 @@ public class MtgStapleChecker {
 	}
 
 	public static CardObject getScryfallCard(String cardname) throws IOException {
-		String q = String.format("!\"%s\" lang:en -set_type:memorabilia -set_type:funny -layout:scheme -layout:planar -layout:vanguard -type:token", cardname);
-		ListObject<CardObject> foundCards = scryfallApi.execCall(scryfallApi.cards()
-				.search(q, null, null, null, true, null, null, null, null, null));
+		String query = String.format("!\"%s\" lang:en -set_type:memorabilia -set_type:funny -layout:scheme -layout:planar -layout:vanguard -type:token", cardname);
+		ListObject<CardObject> foundCards = ScryfallApi.search(query).get();
 		if (foundCards == null) {
 			log.severe(String.format("Card not found '%s'. Might be a 'funny' card.", cardname));
 			return null;
