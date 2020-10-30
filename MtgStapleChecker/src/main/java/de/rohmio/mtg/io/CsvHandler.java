@@ -1,4 +1,4 @@
-package de.rohmio.mtg.write;
+package de.rohmio.mtg.io;
 
 import java.io.File;
 import java.io.IOException;
@@ -97,7 +97,7 @@ public class CsvHandler implements IOHandler {
 	}
 
 	@Override
-	public List<CardStapleInfo> getCardsNotNeededAnymore(int daysAgo) {
+	public List<CardStapleInfo> getCardsNotNeeded(int daysAgo) {
 		throw new RuntimeException("Not yet implemented");
 	}
 }

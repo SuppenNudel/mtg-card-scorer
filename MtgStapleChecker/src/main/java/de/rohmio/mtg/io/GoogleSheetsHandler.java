@@ -1,4 +1,4 @@
-package de.rohmio.mtg.write;
+package de.rohmio.mtg.io;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -111,7 +111,7 @@ public class GoogleSheetsHandler implements IOHandler {
 	}
 
 	@Override
-	public List<CardStapleInfo> getCardsNotNeededAnymore(int daysAgo) {
+	public List<CardStapleInfo> getCardsNotNeeded(int daysAgo) {
 		List<CardStapleInfo> cardStapleInfos = new ArrayList<>();
 		try {
 			ValueRange result = service.spreadsheets().values().get(spreadsheetId, "A1:E10000").execute();

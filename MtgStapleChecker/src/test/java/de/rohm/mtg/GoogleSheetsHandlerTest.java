@@ -5,9 +5,9 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
+import de.rohmio.mtg.io.GoogleSheetsHandler;
+import de.rohmio.mtg.io.IOHandler;
 import de.rohmio.mtg.model.CardStapleInfo;
-import de.rohmio.mtg.write.GoogleSheetsHandler;
-import de.rohmio.mtg.write.IOHandler;
 
 public class GoogleSheetsHandlerTest {
 	
@@ -21,7 +21,7 @@ public class GoogleSheetsHandlerTest {
 	
 	@Test
 	public void read() {
-		List<CardStapleInfo> cardsNotNeededAnymore = handler.getCardsNotNeededAnymore(7);
+		List<CardStapleInfo> cardsNotNeededAnymore = handler.getCardsNotNeeded(7);
 	}
 
 }

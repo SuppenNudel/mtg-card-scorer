@@ -1,4 +1,4 @@
-package de.rohmio.mtg.write;
+package de.rohmio.mtg.io;
 
 import static org.jooq.impl.DSL.field;
 import static org.jooq.impl.DSL.table;
@@ -122,7 +122,7 @@ public class SqlHandler implements IOHandler {
 	}
 	
 	@Override
-	public List<CardStapleInfo> getCardsNotNeededAnymore(int daysAgo) {
+	public List<CardStapleInfo> getCardsNotNeeded(int daysAgo) {
 		List<Condition> conditions = new ArrayList<>();
 		// missing information
 		for(String format : MtgStapleChecker.formats) {

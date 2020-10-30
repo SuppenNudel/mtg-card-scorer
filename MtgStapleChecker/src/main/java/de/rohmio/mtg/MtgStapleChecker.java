@@ -16,9 +16,9 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.stream.Collectors;
 
+import de.rohmio.mtg.io.IOHandler;
+import de.rohmio.mtg.io.SqlHandler;
 import de.rohmio.mtg.model.CardStapleInfo;
-import de.rohmio.mtg.write.IOHandler;
-import de.rohmio.mtg.write.SqlHandler;
 import de.rohmio.scryfall.api.ScryfallApi;
 import de.rohmio.scryfall.api.model.CardFaceObject;
 import de.rohmio.scryfall.api.model.CardObject;
@@ -44,7 +44,7 @@ public class MtgStapleChecker {
 		log.info("Total amount of cards: " + cardnames.size());
 
 		// filter out cards where their information is still relevant
-		List<CardStapleInfo> cardsNotNeededAnymore = ioHandler.getCardsNotNeededAnymore(config.getRenewXdaysbefore());
+		List<CardStapleInfo> cardsNotNeededAnymore = ioHandler.getCardsNotNeeded(config.getRenewXdaysbefore());
 		List<String> cardnamesNotNeededAnymore = cardsNotNeededAnymore.stream().map(c -> c.getCardname())
 				.collect(Collectors.toList());
 		List<String> remainingCards = cardnames.stream().filter(c -> !cardnamesNotNeededAnymore.contains(c))

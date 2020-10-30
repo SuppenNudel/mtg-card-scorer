@@ -1,4 +1,4 @@
-package de.rohmio.mtg.write;
+package de.rohmio.mtg.io;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,9 +46,6 @@ public class MdHandler implements IOHandler {
 
 	@Override
 	public void addDataset(CardStapleInfo cardStapleInfo) throws IOException {
-		if(true) {
-			throw new RuntimeException("Not implemented");
-		}
 		Map<String, String> values = new HashMap<>();
 		StringBuilder sb_line = new StringBuilder();
 		for (String title : fields) {
@@ -70,7 +67,7 @@ public class MdHandler implements IOHandler {
 	}
 
 	@Override
-	public List<CardStapleInfo> getCardsNotNeededAnymore(int daysAgo) {
+	public List<CardStapleInfo> getCardsNotNeeded(int daysAgo) {
 		throw new RuntimeException("Not yet implemented");
 	}
 

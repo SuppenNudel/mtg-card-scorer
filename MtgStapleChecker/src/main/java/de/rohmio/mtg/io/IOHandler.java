@@ -1,4 +1,4 @@
-package de.rohmio.mtg.write;
+package de.rohmio.mtg.io;
 
 import java.io.IOException;
 import java.util.List;
@@ -13,6 +13,6 @@ public interface IOHandler {
 	public void init() throws IOException;
 	public void addDataset(CardStapleInfo cardStapleInfo) throws IOException;
 	public CardStapleInfo getCardStapleInfo(String cardname);
-	public List<CardStapleInfo> getCardsNotNeededAnymore(int daysAgo);
+	public List<CardStapleInfo> getCardsNotNeeded(int daysAgo);
 	
 }

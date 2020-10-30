@@ -6,9 +6,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import de.rohmio.mtg.Config;
+import de.rohmio.mtg.io.IOHandler;
+import de.rohmio.mtg.io.SqlHandler;
 import de.rohmio.mtg.model.CardStapleInfo;
-import de.rohmio.mtg.write.IOHandler;
-import de.rohmio.mtg.write.SqlHandler;
 
 public class SqlHandlerTest {
 	
