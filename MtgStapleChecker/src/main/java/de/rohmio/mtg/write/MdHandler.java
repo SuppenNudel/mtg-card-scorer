@@ -2,6 +2,7 @@ package de.rohmio.mtg.write;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -20,23 +21,26 @@ public class MdHandler implements IOHandler {
 	private static final String valueSeparator = " | ";
 
 	private File file;
-	private List<String> titles;
+	private List<String> fields;
 
 	public MdHandler(File file) {
 		this.file = file;
 	}
 
 	@Override
-	public void init(List<String> titles) throws IOException {
-		this.titles = titles;
+	public void init() throws IOException {
+		fields = new ArrayList<>();
+		fields.add(0, FIELD_CARDNAME);
+		fields.add(1, FIELD_TIMESTAMP);
+		
 		log.info("init md file: " + file);
 		log.info("deleting file: " + file);
 		file.delete();
 
-		String titlesLine = String.join(valueSeparator, titles);
+		String titlesLine = String.join(valueSeparator, fields);
 		FileUtils.writeStringToFile(file, titlesLine + ln, "UTF-8", true);
 
-		String hr = String.join("", Collections.nCopies(titles.size(), " | ---"));
+		String hr = String.join("", Collections.nCopies(fields.size(), " | ---"));
 		FileUtils.writeStringToFile(file, "---" + hr + ln, "UTF-8", true);
 	}
 
@@ -47,7 +51,7 @@ public class MdHandler implements IOHandler {
 		}
 		Map<String, String> values = new HashMap<>();
 		StringBuilder sb_line = new StringBuilder();
-		for (String title : titles) {
+		for (String title : fields) {
 			String value = values.get(title);
 			sb_line.append(valueSeparator);
 			if (value != null) {

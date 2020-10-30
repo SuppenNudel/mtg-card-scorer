@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,10 +15,6 @@ import java.util.logging.FileHandler;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.stream.Collectors;
-
-import org.apache.commons.configuration2.Configuration;
-import org.apache.commons.configuration2.builder.fluent.Configurations;
-import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import de.rohmio.mtg.model.CardStapleInfo;
 import de.rohmio.mtg.write.IOHandler;
@@ -31,41 +26,27 @@ import de.rohmio.scryfall.api.model.ListObject;
 import de.rohmio.scryfall.api.model.enums.CatalogType;
 import de.rohmio.scryfall.api.model.enums.Format;
 import de.rohmio.scryfall.api.model.enums.Layout;
-import de.rohmio.scryfall.api.model.enums.Legality;
 
 public class MtgStapleChecker {
 
 	private static Logger log = Logger.getLogger(MtgStapleChecker.class.getName());
 
-	private static Configuration config;
-
-	public static final String FIELD_CARDNAME = "cardname";
-	public static final String FIELD_TIMESTAMP = "timestamp";
+	private static Config config;
+	
 	private static IOHandler ioHandler;
 
 	private static ScryfallApi scryfallApi;
 	public static List<String> formats;
-
-	// mtgtop8 parameters
-	private static boolean mainboard;
-	private static boolean sideboard;
-	private static int startXdaysbefore;
-	private static int endXdaysbefore;
-	private static int renewXdaysbefore;
-	private static List<Legality> interrestingLegalities;
-	private static List<Format> interrestingFormats;
-	private static CompLevel[] compLevels;
-
 	public static void main(String[] args) throws IOException, InterruptedException {
 		initLogger();
-		loadConfig();
+		config = Config.loadConfig();
 		initScript();
 
 		List<String> cardnames = scryfallApi.execCall(scryfallApi.catalog().getCatalog(CatalogType.CARD_NAMES)).getData();
 		log.info("Total amount of cards: " + cardnames.size());
 
 		// filter out cards where their information is still relevant
-		List<CardStapleInfo> cardsNotNeededAnymore = ioHandler.getCardsNotNeededAnymore(renewXdaysbefore);
+		List<CardStapleInfo> cardsNotNeededAnymore = ioHandler.getCardsNotNeededAnymore(config.getRenewXdaysbefore());
 		List<String> cardnamesNotNeededAnymore = cardsNotNeededAnymore.stream().map(c -> c.getCardname())
 				.collect(Collectors.toList());
 		List<String> remainingCards = cardnames.stream().filter(c -> !cardnamesNotNeededAnymore.contains(c))
@@ -126,64 +107,28 @@ public class MtgStapleChecker {
 	}
 
 	public static IOHandler initScript() throws IOException {
-		formats = Arrays.asList(Format.values()).stream().filter(f -> interrestingFormats.contains(f))
+		formats = Arrays.asList(Format.values()).stream().filter(f -> config.getInterrestingFormats().contains(f))
 				.filter(f -> f.getTop8Code() != null).map(f -> f.name()).collect(Collectors.toList());
 
-		List<String> fields = new ArrayList<>(formats);
-		fields.add(0, FIELD_CARDNAME);
-		fields.add(1, FIELD_TIMESTAMP);
 
 //		CsvHandler csvHandler = new CsvHandler(new File("results/competitive_score.csv"));
 //		csvHandler.init(fields);
-		SqlHandler sqlHandler = new SqlHandler(config.getString("database.host"), config.getInt("database.port"),
-				config.getString("database.user"), config.getString("database.password", "secret"),
-				config.getString("database.database"), config.getString("database.table"));
+		SqlHandler sqlHandler = new SqlHandler(
+				config.getHost(),
+				config.getPort(),
+				config.getUser(),
+				config.getPassword(),
+				config.getDatabase(),
+				config.getTable());
 //		GoogleSheetsHandler googleSheetsHandler = new GoogleSheetsHandler();
 
 		ioHandler = sqlHandler;
-		ioHandler.init(fields);
+		ioHandler.init();
 		log.info(String.format("Using %s as ioHandler", ioHandler));
 
 		scryfallApi = new ScryfallApi();
 		
 		return ioHandler;
-	}
-
-	public static void loadConfig() {
-		Configurations configs = new Configurations();
-		try {
-			config = configs.properties(new File("config.properties"));
-			// access configuration properties
-
-			mainboard = config.getBoolean("mtgtop8.mainboard");
-			sideboard = config.getBoolean("mtgtop8.sideboard");
-			startXdaysbefore = config.getInt("mtgtop8.startXdaysbefore");
-			endXdaysbefore = config.getInt("mtgtop8.endXdaysbefore");
-			renewXdaysbefore = config.getInt("mtgtop8.renewXdaysbefore");
-
-			String[] formatsStringArray = config.getString("mtgtop8.formats").split(",");
-			interrestingFormats = new ArrayList<>();
-			for (String formatString : formatsStringArray) {
-				interrestingFormats.add(Format.valueOf(formatString));
-			}
-
-			String[] legalityStringArray = config.getString("mtgtop8.legalities").split(",");
-			interrestingLegalities = new ArrayList<>();
-			for (String string : legalityStringArray) {
-				interrestingLegalities.add(Legality.valueOf(string));
-			}
-
-			String[] complevelStringArray = config.getString("mtgtop8.complevels").split(",");
-			List<CompLevel> compLevelsList = new ArrayList<>();
-			for (String string : complevelStringArray) {
-				compLevelsList.add(CompLevel.valueOf(string));
-			}
-			compLevels = compLevelsList.toArray(new CompLevel[compLevelsList.size()]);
-
-		} catch (ConfigurationException e) {
-			// Something went wrong
-			e.printStackTrace();
-		}
 	}
 
 	/*
@@ -198,6 +143,22 @@ public class MtgStapleChecker {
 		FileHandler handler = new FileHandler("logs/" + timestamp + ".log");
 		handler.setFormatter(new SimpleFormatter());
 		log.addHandler(handler);
+	}
+
+	public static CardObject getScryfallCard(String cardname) throws IOException {
+		String q = String.format("!\"%s\" lang:en -set_type:memorabilia -set_type:funny -layout:scheme -layout:planar -layout:vanguard -type:token", cardname);
+		ListObject<CardObject> foundCards = scryfallApi.execCall(scryfallApi.cards()
+				.search(q, null, null, null, true, null, null, null, null, null));
+		if (foundCards == null) {
+			log.severe(String.format("Card not found '%s'. Might be a 'funny' card.", cardname));
+			return null;
+		}
+		if(foundCards.getTotal_cards() != 1) {
+			log.severe(String.format("Cardname '%s' is ambiguous.", cardname));
+			return null;
+		}
+		CardObject scryfallCard = foundCards.getData().get(0);
+		return scryfallCard;
 	}
 
 	private static String normalizeCardName(CardObject scryfallCard) {
@@ -225,22 +186,8 @@ public class MtgStapleChecker {
 		}
 		return normalizedCardname;
 	}
-
-	public static CardObject getScryfallCard(String cardname) throws IOException {
-		String q = String.format("!\"%s\" lang:en -set_type:memorabilia -set_type:funny -layout:scheme -layout:planar -layout:vanguard -type:token", cardname);
-		ListObject<CardObject> foundCards = scryfallApi.execCall(scryfallApi.cards()
-				.search(q, null, null, null, true, null, null, null, null, null));
-		if (foundCards == null) {
-			log.severe(String.format("Card not found '%s'. Might be a 'funny' card.", cardname));
-			return null;
-		}
-		if(foundCards.getTotal_cards() != 1) {
-			log.severe(String.format("Cardname '%s' is ambiguous.", cardname));
-			return null;
-		}
-		CardObject scryfallCard = foundCards.getData().get(0);
-		return scryfallCard;
-	}
+	
+	// TODO do not request card if it is not legal anyway
 
 	public static CardStapleInfo doCard(CardObject scryfallCard) throws IOException {
 		log.info("Doing card: " + scryfallCard);
@@ -248,56 +195,13 @@ public class MtgStapleChecker {
 		CardStapleInfo cardStapleInfo = new CardStapleInfo(scryfallCard.getName());
 
 		List<Thread> threads = new ArrayList<>();
-		Map<Format, Legality> cardLegalities = scryfallCard.getLegalities();
-		// go through formats in which the card is legal
-
-		for (Format format : interrestingFormats) {
-			String top8FormatCode = format.getTop8Code();
-			// if this format can not be looked up on mtgtop8 skip it
-			if (top8FormatCode == null) {
-				continue;
-			}
-
-			Legality legality = cardLegalities.get(format);
-			// if card is not legal in this format skip it
-			if (!interrestingLegalities.contains(legality)) {
-				cardStapleInfo.setFormatScore(format, -1);
-				continue;
-			}
-
-			for (CompLevel compLevel : compLevels) {
-			
+		for (Format format : config.getInterrestingFormats()) {
+			for (CompLevel compLevel : config.getCompLevels()) {
 				String normalizedCardName = normalizeCardName(scryfallCard);
 	
 				Thread thread = new Thread(() -> {
-					MtgTop8Search mtgTop8Search = new MtgTop8Search();
-					mtgTop8Search.setBoard(mainboard, sideboard);
-					mtgTop8Search.setStartDate(startXdaysbefore);
-					mtgTop8Search.setEndDate(endXdaysbefore);
-					mtgTop8Search.setCards(normalizedCardName);
-					mtgTop8Search.setCompLevel(compLevels);
-	
-					mtgTop8Search.setFormat(MtgTop8Format.valueOf(top8FormatCode));
-	
-					// repeat request for as long as it fails
-					boolean successful = false;
-					for (int tryNo = 0; tryNo <= 3 && !successful; ++tryNo) {
-						try {
-							log.info(String.format("Requesting from mtgtop8; Card: '%s' Format: '%s'; CompLevel: '%s'",
-									scryfallCard, format, compLevel));
-							int deckCount = mtgTop8Search.getDeckCount();
-							cardStapleInfo.setFormatScore(format, deckCount * compLevel.getFactor());
-							successful = true;
-						} catch (IOException e) {
-							// repeat
-							log.warning(String.format("%s on %s; repeating action tryNo %s", e.getMessage(),
-									Arrays.asList(mtgTop8Search.getCards()), tryNo));
-						}
-					}
-					if (!successful) {
-						log.warning(String.format("repeated request often enough, still no response on card: %s",
-								Arrays.asList(mtgTop8Search.getCards())));
-					}
+					int deckCount = requestDeckCountMultiTry(normalizedCardName, format, compLevel, 3);
+					cardStapleInfo.setFormatScore(format, deckCount * compLevel.getFactor());
 				}, normalizedCardName + " in " + format);
 				threads.add(thread);
 				thread.start();
@@ -314,6 +218,40 @@ public class MtgStapleChecker {
 		log.info("Collected all infos about card: " + scryfallCard);
 
 		return cardStapleInfo;
+	}
+	
+	private static int requestDeckCountMultiTry(String normalizedCardName, Format format, CompLevel compLevel, int numberOfTries) {
+		boolean successful = false;
+		for (int tryNo = 0; tryNo <= 3 && !successful; ++tryNo) {
+			try {
+				int deckCount = requestDeckCount(normalizedCardName, format, compLevel);
+				successful = true;
+				return deckCount;
+			} catch (IOException e) {
+				log.warning(String.format("%s on %s; repeating action tryNo %s", e.getMessage(),
+						normalizedCardName, tryNo));
+			}
+		}
+		if (!successful) {
+			log.warning(String.format("repeated request often enough, still no response on card: %s",
+					normalizedCardName));
+		}
+		return -1;
+	}
+	
+	private static int requestDeckCount(String normalizedCardName, Format format, CompLevel compLevel) throws IOException {
+		MtgTop8Search mtgTop8Search = new MtgTop8Search();
+		mtgTop8Search.setBoard(config.isMainboard(), config.isMainboard());
+		mtgTop8Search.setStartDate(config.getStartXdaysbefore());
+		mtgTop8Search.setEndDate(config.getEndXdaysbefore());
+		mtgTop8Search.setCards(normalizedCardName);
+		mtgTop8Search.setCompLevel(compLevel);
+
+		mtgTop8Search.setFormat(MtgTop8Format.valueOf(format.getTop8Code()));
+
+		log.info(String.format("Requesting from mtgtop8; Card: '%s' Format: '%s'; CompLevel: '%s'",
+				normalizedCardName, format, compLevel));
+		return mtgTop8Search.getDeckCount();
 	}
 
 }

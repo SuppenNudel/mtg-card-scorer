@@ -10,13 +10,6 @@ public class CardStapleInfo {
 	
 	private String cardname;
 	private Calendar timestamp;
-	private Integer standard;
-	private Integer pioneer;
-	private Integer modern;
-	private Integer legacy;
-	private Integer pauper;
-	private Integer vintage;
-	private Integer commander;
 	
 	private Map<Format, Integer> formatScores = new HashMap<>();
 	
@@ -30,13 +23,7 @@ public class CardStapleInfo {
 	}
 
 	public boolean anyIsNull() {
-		return standard == null
-				|| pioneer == null
-				|| modern == null
-				|| legacy == null
-				|| pauper == null
-				|| vintage == null
-				|| commander == null;
+		return formatScores.values().stream().anyMatch(i -> i == null);
 	}
 
 	public void setFormatScore(Format format, int score) {
@@ -45,10 +32,6 @@ public class CardStapleInfo {
 	
 	public int getFormatScore(Format format) {
 		return formatScores.get(format);
-	}
-	
-	public Map<Format, Integer> getFormatScores() {
-		return formatScores;
 	}
 	
 	public String getCardname() {

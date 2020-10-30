@@ -3,6 +3,7 @@ package de.rohmio.mtg.write;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
@@ -10,7 +11,6 @@ import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
 
-import de.rohmio.mtg.MtgStapleChecker;
 import de.rohmio.mtg.model.CardStapleInfo;
 import de.rohmio.scryfall.api.model.enums.Format;
 
@@ -20,7 +20,7 @@ public class CsvHandler implements IOHandler {
 	private static final String valueSeparator = ",";
 
 	private File file;
-	private List<String> titles;
+	private List<String> fields;
 	
 	private Map<String, CardStapleInfo> data = new HashMap<>();
 
@@ -29,8 +29,11 @@ public class CsvHandler implements IOHandler {
 	}
 
 	@Override
-	public void init(List<String> titles) throws IOException {
-		this.titles = titles;
+	public void init() throws IOException {
+		fields = new ArrayList<>();
+		fields.add(0, FIELD_CARDNAME);
+		fields.add(1, FIELD_TIMESTAMP);
+		
 		if(file.exists()) {
 			// load data
 			String string = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
@@ -55,20 +58,24 @@ public class CsvHandler implements IOHandler {
 			return;
 		}
 
-		String titlesLine = String.join(valueSeparator, titles);
+		String titlesLine = String.join(valueSeparator, fields);
 		FileUtils.writeStringToFile(file, titlesLine + ln, "UTF-8", true);
 	}
 
 	@Override
 	public void addDataset(CardStapleInfo cardStapleInfo) throws IOException {
 		Map<String, String> values = new HashMap<>();
-		values.put(MtgStapleChecker.FIELD_CARDNAME, cardStapleInfo.getCardname());
-		for(Format format : cardStapleInfo.getFormatScores().keySet()) {
-			values.put(format.name(), String.valueOf(cardStapleInfo.getFormatScore(format)));
+		values.put(FIELD_CARDNAME, cardStapleInfo.getCardname());
+		for(Format format : Format.values()) {
+			int score = cardStapleInfo.getFormatScore(format);
+			if(score < 0) {
+				continue;
+			}
+			values.put(format.name(), String.valueOf(score));
 		}
-		values.put(MtgStapleChecker.FIELD_TIMESTAMP, Calendar.getInstance().getTime().toString());
+		values.put(IOHandler.FIELD_TIMESTAMP, Calendar.getInstance().getTime().toString());
 		StringBuilder sb_line = new StringBuilder();
-		for (String title : titles) {
+		for (String title : fields) {
 			String value = values.get(title);
 			sb_line.append(valueSeparator);
 			if (value != null) {
@@ -81,7 +88,7 @@ public class CsvHandler implements IOHandler {
 		System.out.println(String.format("Writing in '%s': %s", file.getName(), sb_line));
 		FileUtils.writeStringToFile(file, line + ln, "UTF-8", true);
 		
-		data.put(values.get(MtgStapleChecker.FIELD_CARDNAME), cardStapleInfo);
+		data.put(values.get(FIELD_CARDNAME), cardStapleInfo);
 	}
 
 	@Override
