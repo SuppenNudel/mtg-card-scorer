@@ -1,7 +1,5 @@
 package de.rohmio.mtg.write;
 
-import static org.jooq.impl.DSL.field;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,9 +13,6 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
-
-import org.apache.http.client.utils.DateUtils;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
@@ -33,7 +28,6 @@ import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.ValueRange;
 
-import de.rohmio.mtg.MtgStapleChecker;
 import de.rohmio.mtg.model.CardStapleInfo;
 import de.rohmio.scryfall.api.model.enums.Format;
 
@@ -52,11 +46,8 @@ public class GoogleSheetsHandler implements IOHandler {
 	
 	private Sheets service;
 	
-	private List<String> titles;
-	
 	@Override
-	public void init(List<String> titles) throws IOException {
-		this.titles = titles;
+	public void init() throws IOException {
         // Build a new authorized API client service.
 		try {
 			NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();

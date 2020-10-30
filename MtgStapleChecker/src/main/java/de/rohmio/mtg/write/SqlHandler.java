@@ -24,6 +24,7 @@ import org.jooq.impl.DSL;
 
 import de.rohmio.mtg.MtgStapleChecker;
 import de.rohmio.mtg.model.CardStapleInfo;
+import de.rohmio.scryfall.api.model.enums.Format;
 
 public class SqlHandler implements IOHandler {
 	
@@ -48,7 +49,7 @@ public class SqlHandler implements IOHandler {
 	}
 
 	@Override
-	public void init(List<String> titles) throws IOException {
+	public void init() throws IOException {
 		try {
 			Class.forName("com.mysql.cj.jdbc.Driver");
 		} catch (ClassNotFoundException e) {
@@ -72,26 +73,26 @@ public class SqlHandler implements IOHandler {
 	
 	@Override
 	public void addDataset(CardStapleInfo cardStapleInfo) throws IOException {
-		if(true) {
-			throw new RuntimeException("Not implemented");
-		}
-		Map<String, String> values = new HashMap<>();
-		Map<Field<Object>, Object> setMap = new HashMap<>();
-		for(String key : values.keySet()) {
-			String value = values.get(key);
-			if(value == null) {
+		List<Field<Integer>> fields = new ArrayList<>();
+		Map<String, String> setMap = new HashMap<>();
+		
+		setMap.put("cardname", cardStapleInfo.getCardname());
+		for(Format format : Format.values()) {
+			int formatScore = cardStapleInfo.getFormatScore(format);
+			if(formatScore < 0) {
 				continue;
 			}
-			Field<Object> field = field(key);
-			setMap.put(field, value);
+			fields.add(field(format.name(), Integer.class, formatScore));
+			setMap.put(format.name(), String.valueOf(formatScore));
 		}
 		
-		@SuppressWarnings("unchecked")
-		Field<Object>[] fieldsArr = setMap.keySet().toArray(new Field[setMap.size()]);
-		Object[] valuesArr = setMap.values().toArray(new Object[setMap.size()]);
 		Connection conn = openConnection();
 		DSLContext context = DSL.using(conn, SQLDialect.MYSQL);
-		InsertOnDuplicateSetMoreStep<Record> call = context.insertInto(table(table), fieldsArr).values(valuesArr).onDuplicateKeyUpdate().set(setMap);
+		
+		InsertOnDuplicateSetMoreStep<Record> call = context
+				.insertInto(table(table), fields)
+				.onDuplicateKeyUpdate()
+				.set(setMap);
 		try {
 			call.execute();
 		} catch (Exception e) {
@@ -110,7 +111,7 @@ public class SqlHandler implements IOHandler {
 		Connection conn = openConnection();
 		DSLContext context = DSL.using(conn, SQLDialect.MYSQL);
 		CardStapleInfo cardStapleInfo = context.selectFrom(table)
-				.where(field(MtgStapleChecker.FIELD_CARDNAME)
+				.where(field(FIELD_CARDNAME)
 				.eq(cardname)).fetchOneInto(CardStapleInfo.class);
 		try {
 			conn.close();
@@ -129,7 +130,7 @@ public class SqlHandler implements IOHandler {
 		}
 		Calendar calendar = Calendar.getInstance();
 		calendar.add(Calendar.DAY_OF_YEAR, -daysAgo);
-		conditions.add(field(MtgStapleChecker.FIELD_TIMESTAMP).greaterThan(calendar.getTime()));
+		conditions.add(field(FIELD_TIMESTAMP).greaterThan(calendar.getTime()));
 		Connection connection = openConnection();
 		DSLContext context = DSL.using(connection, SQLDialect.MYSQL);
 		List<CardStapleInfo> cardstapleinfos = context
