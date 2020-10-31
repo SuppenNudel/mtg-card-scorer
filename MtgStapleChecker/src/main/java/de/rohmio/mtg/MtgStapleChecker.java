@@ -20,6 +20,9 @@ import java.util.stream.Collectors;
 import de.rohmio.mtg.io.IOHandler;
 import de.rohmio.mtg.io.SqlHandler;
 import de.rohmio.mtg.model.CardStapleInfo;
+import de.rohmio.mtgtop8.api.MtgTop8Api;
+import de.rohmio.mtgtop8.api.model.enums.CompLevel;
+import de.rohmio.mtgtop8.api.model.enums.MtgTop8Format;
 import de.rohmio.scryfall.api.ScryfallApi;
 import de.rohmio.scryfall.api.model.CardFaceObject;
 import de.rohmio.scryfall.api.model.CardObject;
@@ -237,18 +240,27 @@ public class MtgStapleChecker {
     }
     
     private static int requestDeckCount(String normalizedCardName, Format format, CompLevel compLevel) throws IOException {
-        MtgTop8Search mtgTop8Search = new MtgTop8Search();
-        mtgTop8Search.setBoard(config.isMainboard(), config.isMainboard());
-        mtgTop8Search.setStartDate(config.getStartXdaysbefore());
-        mtgTop8Search.setEndDate(config.getEndXdaysbefore());
-        mtgTop8Search.setCards(normalizedCardName);
-        mtgTop8Search.setCompLevel(compLevel);
-
-        mtgTop8Search.setFormat(MtgTop8Format.valueOf(format.getTop8Code()));
+    	int startXdaysbefore = config.getStartXdaysbefore();
+    	Calendar startdate = Calendar.getInstance();
+		startdate.add(Calendar.DAY_OF_YEAR, -startXdaysbefore);
+		
+		int endXdaysbefore = config.getEndXdaysbefore();
+    	Calendar enddate = Calendar.getInstance();
+    	enddate.add(Calendar.DAY_OF_YEAR, -endXdaysbefore);
+		
+    	Integer deckCount = MtgTop8Api.sarch()
+    	.mainboard(config.isMainboard())
+    	.sideboard(config.isSideboard())
+    	.startdate(startdate)
+    	.enddate(enddate)
+    	.cards(normalizedCardName)
+    	.compLevel(compLevel)
+    	.format(MtgTop8Format.valueOf(format.getTop8Code()))
+    	.get();
 
         log.info(String.format("Requesting from mtgtop8; Card: '%s' Format: '%s'; CompLevel: '%s'",
                 normalizedCardName, format, compLevel));
-        return mtgTop8Search.getDeckCount();
+        return deckCount;
     }
 
 }

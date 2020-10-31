@@ -80,9 +80,9 @@
 			<version>0.0.2-SNAPSHOT</version>
 		</dependency>
 		<dependency>
-			<groupId>MtgTop8Search</groupId>
-			<artifactId>MtgTop8Search</artifactId>
-			<version>0.0.2</version>
+			<groupId>MtgTop8SearchApi</groupId>
+			<artifactId>MtgTop8SearchApi</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->
 		<dependency>
