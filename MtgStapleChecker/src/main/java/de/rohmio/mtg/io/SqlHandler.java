@@ -73,28 +73,30 @@ public class SqlHandler implements IOHandler {
 	
 	@Override
 	public void addDataset(CardStapleInfo cardStapleInfo) throws IOException {
-		List<Field<Integer>> fields = new ArrayList<>();
-		Map<String, String> setMap = new HashMap<>();
+		Map<Field<Object>, Object> setMap = new HashMap<>();
 		
-		setMap.put("cardname", cardStapleInfo.getCardname());
+		setMap.put(field("cardname"), cardStapleInfo.getCardname());
+		setMap.put(field("timestamp"), cardStapleInfo.getTimestamp().getTime());
+		
 		for(Format format : Format.values()) {
-			int formatScore = cardStapleInfo.getFormatScore(format);
-			if(formatScore < 0) {
+			Integer formatScore = cardStapleInfo.getFormatScore(format);
+			if(formatScore == null) {
 				continue;
 			}
-			fields.add(field(format.name(), Integer.class, formatScore));
-			setMap.put(format.name(), String.valueOf(formatScore));
+			setMap.put(field(format.name()), formatScore);
 		}
 		
 		Connection conn = openConnection();
 		DSLContext context = DSL.using(conn, SQLDialect.MYSQL);
 		
 		InsertOnDuplicateSetMoreStep<Record> call = context
-				.insertInto(table(table), fields)
+				.insertInto(table(table))
+				.set(setMap)
 				.onDuplicateKeyUpdate()
 				.set(setMap);
 		try {
 			call.execute();
+			System.out.println("Added Dataset to Database: "+cardStapleInfo);
 		} catch (Exception e) {
 			log.severe("Sql statement failed: "+call.toString());
 			e.printStackTrace();

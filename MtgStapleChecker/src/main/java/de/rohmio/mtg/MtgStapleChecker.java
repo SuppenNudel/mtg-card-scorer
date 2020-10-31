@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -25,6 +26,7 @@ import de.rohmio.scryfall.api.model.CardObject;
 import de.rohmio.scryfall.api.model.ListObject;
 import de.rohmio.scryfall.api.model.enums.Format;
 import de.rohmio.scryfall.api.model.enums.Layout;
+import de.rohmio.scryfall.api.model.enums.Legality;
 
 public class MtgStapleChecker {
 
@@ -40,7 +42,7 @@ public class MtgStapleChecker {
 		config = Config.loadConfig();
 		initScript();
 
-		List<String> cardnames = ScryfallApi.cardNames().get().getData();
+		List<String> cardnames = ScryfallApi.catalogs.cardNames().get().getData();
 		log.info("Total amount of cards: " + cardnames.size());
 
 		// filter out cards where their information is still relevant
@@ -61,7 +63,7 @@ public class MtgStapleChecker {
 					CardObject scryfallCard = getScryfallCard(cardname);
 					System.out.println(scryfallCard);
 					if(shouldDoCard(scryfallCard)) {
-						CardStapleInfo cardStapleInfo = doCard(scryfallCard);
+						CardStapleInfo cardStapleInfo = gatherCardStapleInfo(scryfallCard);
 						if(cardStapleInfo != null) {
 							ioHandler.addDataset(cardStapleInfo);
 						}
@@ -166,7 +168,7 @@ public class MtgStapleChecker {
 
 	public static CardObject getScryfallCard(String cardname) throws IOException {
 		String query = String.format("!\"%s\" lang:en -set_type:memorabilia -set_type:funny -layout:scheme -layout:planar -layout:vanguard -type:token", cardname);
-		ListObject<CardObject> foundCards = ScryfallApi.search(query).get();
+		ListObject<CardObject> foundCards = ScryfallApi.cards.search(query).get();
 		if (foundCards == null) {
 			log.severe(String.format("Card not found '%s'. Might be a 'funny' card.", cardname));
 			return null;
@@ -179,34 +181,39 @@ public class MtgStapleChecker {
 		return scryfallCard;
 	}
 
-	public static CardStapleInfo doCard(CardObject scryfallCard) throws IOException {
+	public static CardStapleInfo gatherCardStapleInfo(CardObject scryfallCard) throws IOException {
 		log.info("Doing card: " + scryfallCard);
 
 		CardStapleInfo cardStapleInfo = new CardStapleInfo(scryfallCard.getName());
 
 		List<Thread> threads = new ArrayList<>();
 		for (Format format : config.getInterrestingFormats()) {
-			for (CompLevel compLevel : config.getCompLevels()) {
-				String normalizedCardName = normalizeCardName(scryfallCard);
-	
-				Thread thread = new Thread(() -> {
-					int deckCount = requestDeckCountMultiTry(normalizedCardName, format, compLevel, 3);
-					cardStapleInfo.setFormatScore(format, deckCount * compLevel.getFactor());
-				}, normalizedCardName + " in " + format);
-				threads.add(thread);
-				thread.start();
+			// is it even legal
+			Legality legality = scryfallCard.getLegalities().get(format);
+			if (legality == Legality.banned || legality == Legality.not_legal) {
+				cardStapleInfo.setFormatScore(format, -1);
+			} else {
+				for (CompLevel compLevel : config.getCompLevels()) {
+					String normalizedCardName = normalizeCardName(scryfallCard);
+					Thread thread = new Thread(() -> {
+						int deckCount = requestDeckCountMultiTry(normalizedCardName, format, compLevel, 3);
+						cardStapleInfo.setFormatScore(format, deckCount * compLevel.getFactor());
+					}, normalizedCardName + " in " + format);
+					threads.add(thread);
+					thread.start();
+				}
+				threads.forEach(t -> {
+					try {
+						t.join();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				});
 			}
 		}
-		threads.forEach(t -> {
-			try {
-				t.join();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		});
 
 		log.info("Collected all infos about card: " + scryfallCard);
-
+		cardStapleInfo.setTimestamp(Calendar.getInstance());
 		return cardStapleInfo;
 	}
 	

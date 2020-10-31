@@ -173,6 +173,9 @@ public class MtgTop8Search {
 	}
 	
 	private int parseDocumentForDeckCount(Document doc) {
+		if(doc.toString().contains("No match for")) {
+			return 0;
+		}
 		String sumText = doc.select("table > tbody > tr > td > div[class=w_title]").text();
 		sumText = sumText.replace("decks matching", "").trim();
 		

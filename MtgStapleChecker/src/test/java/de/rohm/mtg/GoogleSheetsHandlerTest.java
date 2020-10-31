@@ -22,6 +22,7 @@ public class GoogleSheetsHandlerTest {
 	@Test
 	public void read() {
 		List<CardStapleInfo> cardsNotNeededAnymore = handler.getCardsNotNeeded(7);
+		System.out.println(cardsNotNeededAnymore);
 	}
 
 }

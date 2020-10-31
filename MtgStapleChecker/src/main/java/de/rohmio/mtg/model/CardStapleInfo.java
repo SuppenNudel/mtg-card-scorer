@@ -10,9 +10,10 @@ public class CardStapleInfo {
 	
 	private String cardname;
 	private Calendar timestamp;
-	private Map<Format, Integer> formatScores = new HashMap<>();
+	private Map<Format, Integer> formatScores;
 	
 	public CardStapleInfo(String cardname) {
+		formatScores = new HashMap<>();
 		this.cardname = cardname;
 	}
 	
@@ -41,7 +42,7 @@ public class CardStapleInfo {
 		formatScores.put(format, score);
 	}
 
-	public int getFormatScore(Format format) {
+	public Integer getFormatScore(Format format) {
 		return formatScores.get(format);
 	}
 
