@@ -27,6 +27,7 @@ import de.rohmio.scryfall.api.ScryfallApi;
 import de.rohmio.scryfall.api.model.CardFaceObject;
 import de.rohmio.scryfall.api.model.CardObject;
 import de.rohmio.scryfall.api.model.ListObject;
+import de.rohmio.scryfall.api.model.enums.CatalogType;
 import de.rohmio.scryfall.api.model.enums.Format;
 import de.rohmio.scryfall.api.model.enums.Layout;
 import de.rohmio.scryfall.api.model.enums.Legality;
@@ -45,7 +46,7 @@ public class MtgStapleChecker {
 		config = Config.loadConfig();
 		initScript();
 
-		List<String> cardnames = ScryfallApi.catalogs.cardNames().get().getData();
+		List<String> cardnames = ScryfallApi.catalogs.catalog(CatalogType.CARD_NAMES).get().getData();
 		log.info("Total amount of cards: " + cardnames.size());
 
 		// filter out cards where their information is still relevant
