@@ -15,7 +15,7 @@ public class SqlHandlerTest {
 	private IOHandler handler;
 	
 	@Before
-	public void inti() {
+	public void init() throws IOException {
 		Config config = Config.loadConfig();
 		handler = new SqlHandler(
 				config.getHost(),
@@ -24,12 +24,14 @@ public class SqlHandlerTest {
 				config.getPassword(),
 				config.getDatabase(),
 				config.getTable());
+		handler.init();
 	}
 	
 	@Test
 	public void addDatasetTest() throws IOException {
 		CardStapleInfo cardStapleInfo = new CardStapleInfo("TEST CARD");
-		handler.addDataset(cardStapleInfo);
+		System.out.println(cardStapleInfo);
+//		handler.addDataset(cardStapleInfo);
 	}
 
 }

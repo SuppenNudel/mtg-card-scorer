@@ -216,7 +216,6 @@ public class MtgStapleChecker {
 		}
 
 		log.info("Collected all infos about card: " + scryfallCard);
-		cardStapleInfo.setTimestamp(Calendar.getInstance());
 		return cardStapleInfo;
 	}
 	

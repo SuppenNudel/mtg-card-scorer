@@ -15,6 +15,9 @@ public class CardStapleInfo {
 	public CardStapleInfo(String cardname) {
 		formatScores = new HashMap<>();
 		this.cardname = cardname;
+		if(timestamp == null) {
+			timestamp = Calendar.getInstance();
+		}
 	}
 	
 	protected CardStapleInfo(String cardname, Calendar timestamp, int standard, int pioneer, int modern, int legacy, int pauper, int vintage, int commander) {
@@ -52,10 +55,6 @@ public class CardStapleInfo {
 
 	public Calendar getTimestamp() {
 		return timestamp;
-	}
-
-	public void setTimestamp(Calendar timestamp) {
-		this.timestamp = timestamp;
 	}
 
 }
