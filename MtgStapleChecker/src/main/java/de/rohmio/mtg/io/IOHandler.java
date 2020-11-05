@@ -6,13 +6,13 @@ import java.util.List;
 import de.rohmio.mtg.model.CardStapleInfo;
 
 public interface IOHandler {
-	
-	public static final String FIELD_CARDNAME = "cardname";
-	public static final String FIELD_TIMESTAMP = "timestamp";
 
-	public void init() throws IOException;
-	public void addDataset(CardStapleInfo cardStapleInfo) throws IOException;
-	public CardStapleInfo getCardStapleInfo(String cardname);
-	public List<CardStapleInfo> getCardsNotNeeded(int daysAgo);
-	
+	String FIELD_CARDNAME = "cardname";
+	String FIELD_TIMESTAMP = "timestamp";
+
+	void init() throws IOException;
+	void addDataset(CardStapleInfo cardStapleInfo) throws IOException;
+	CardStapleInfo getCardStapleInfo(String cardname);
+	List<CardStapleInfo> getCardsNotNeeded(int daysAgo);
+
 }

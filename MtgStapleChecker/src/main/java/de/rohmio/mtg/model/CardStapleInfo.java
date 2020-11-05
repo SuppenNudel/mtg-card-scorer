@@ -7,11 +7,11 @@ import java.util.Map;
 import de.rohmio.scryfall.api.model.enums.Format;
 
 public class CardStapleInfo {
-	
+
 	private String cardname;
 	private Calendar timestamp;
 	private Map<Format, Integer> formatScores;
-	
+
 	public CardStapleInfo(String cardname) {
 		formatScores = new HashMap<>();
 		this.cardname = cardname;
@@ -19,7 +19,7 @@ public class CardStapleInfo {
 			timestamp = Calendar.getInstance();
 		}
 	}
-	
+
 	protected CardStapleInfo(String cardname, Calendar timestamp, int standard, int pioneer, int modern, int legacy, int pauper, int vintage, int commander) {
 		this(cardname);
 		this.timestamp = timestamp;
@@ -34,7 +34,7 @@ public class CardStapleInfo {
 
 	@Override
 	public String toString() {
-		return cardname;
+		return cardname + " - " + formatScores;
 	}
 
 	public boolean anyIsNull() {
