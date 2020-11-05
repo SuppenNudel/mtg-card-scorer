@@ -37,7 +37,7 @@ public class MtgStapleChecker {
 	private static Logger log = Logger.getLogger(MtgStapleChecker.class.getName());
 
 	private static Config config;
-	
+
 	private static IOHandler ioHandler;
 
 	public static List<String> formats;
@@ -51,10 +51,11 @@ public class MtgStapleChecker {
 
 		// filter out cards where their information is still relevant
 		List<CardStapleInfo> cardsNotNeededAnymore = ioHandler.getCardsNotNeeded(config.getRenewXdaysbefore());
-		List<String> cardnamesNotNeededAnymore = cardsNotNeededAnymore.stream().map(c -> c.getCardname())
+		List<String> cardnamesNotNeededAnymore = cardsNotNeededAnymore.stream().map(CardStapleInfo::getCardname)
 				.collect(Collectors.toList());
 		List<String> remainingCards = cardnames.stream().filter(c -> !cardnamesNotNeededAnymore.contains(c))
 				.collect(Collectors.toList());
+
 		log.info("Amount of cards to request: " + remainingCards.size());
 
 		ExecutorService executor = Executors.newFixedThreadPool(20);
@@ -81,7 +82,7 @@ public class MtgStapleChecker {
 		latch.await();
 		awaitTerminationAfterShutdown(executor);
 	}
-	
+
 	public static void awaitTerminationAfterShutdown(ExecutorService threadPool) {
 	    threadPool.shutdown();
 	    try {
@@ -93,7 +94,7 @@ public class MtgStapleChecker {
 	        Thread.currentThread().interrupt();
 	    }
 	}
-	
+
 	private static boolean shouldDoCard(CardObject scryfallCard) {
 		if(scryfallCard == null) {
 			return false;
@@ -107,7 +108,7 @@ public class MtgStapleChecker {
 
 	public static IOHandler initScript() throws IOException {
 		formats = Arrays.asList(Format.values()).stream().filter(f -> config.getInterrestingFormats().contains(f))
-				.filter(f -> f.getTop8Code() != null).map(f -> f.name()).collect(Collectors.toList());
+				.filter(f -> f.getTop8Code() != null).map(Format::name).collect(Collectors.toList());
 
 
 //		CsvHandler csvHandler = new CsvHandler(new File("results/competitive_score.csv"));
@@ -167,7 +168,7 @@ public class MtgStapleChecker {
 		}
 		return normalizedCardname;
 	}
-	
+
 	// TODO do not request card if it is not legal anyway
 
 	public static CardObject getScryfallCard(String cardname) throws IOException {
@@ -219,7 +220,7 @@ public class MtgStapleChecker {
 		log.info("Collected all infos about card: " + scryfallCard);
 		return cardStapleInfo;
 	}
-	
+
     private static int requestDeckCountMultiTry(String normalizedCardName, Format format, CompLevel compLevel, int numberOfTries) {
         boolean successful = false;
         for (int tryNo = 0; tryNo <= 3 && !successful; ++tryNo) {
@@ -238,16 +239,16 @@ public class MtgStapleChecker {
         }
         return -1;
     }
-    
+
     private static int requestDeckCount(String normalizedCardName, Format format, CompLevel compLevel) throws IOException {
     	int startXdaysbefore = config.getStartXdaysbefore();
     	Calendar startdate = Calendar.getInstance();
 		startdate.add(Calendar.DAY_OF_YEAR, -startXdaysbefore);
-		
+
 		int endXdaysbefore = config.getEndXdaysbefore();
     	Calendar enddate = Calendar.getInstance();
     	enddate.add(Calendar.DAY_OF_YEAR, -endXdaysbefore);
-		
+
     	Integer deckCount = MtgTop8Api.sarch()
     	.mainboard(config.isMainboard())
     	.sideboard(config.isSideboard())
