@@ -12,7 +12,7 @@ import de.rohmio.mtgtop8.api.model.enums.CompLevel;
 import de.rohmio.scryfall.api.model.enums.Format;
 import de.rohmio.scryfall.api.model.enums.Legality;
 
-public class Config {
+public class MtgTop8Config {
 
 	// mtgtop8 parameters
 	private boolean mainboard;
@@ -22,23 +22,15 @@ public class Config {
 	private List<Legality> interrestingLegalities;
 	private List<Format> interrestingFormats;
 	private CompLevel[] compLevels;
-
 	private int renewXdaysbefore;
-	
-	private String host;
-	private int port;
-	private String user;
-	private String password;
-	private String database;
-	private String table;
 
-	public static Config loadConfig() {
-		Config config = new Config();
+	public static MtgTop8Config loadConfig() {
+		MtgTop8Config config = new MtgTop8Config();
 		Configurations configs = new Configurations();
 		try {
 			Configuration top8Config = configs.properties(new File("config.properties"));
 			// access configuration properties
-			
+
 			config.mainboard = top8Config.getBoolean("mtgtop8.mainboard");
 			config.sideboard = top8Config.getBoolean("mtgtop8.sideboard");
 			config.startXdaysbefore = top8Config.getInt("mtgtop8.startXdaysbefore");
@@ -66,29 +58,14 @@ public class Config {
 		} catch (ConfigurationException e) {
 			e.printStackTrace();
 		}
-		try {
-			Configuration databaseConfig = configs.properties(new File("config_database.properties"));
-			// access configuration properties
-			
-			config.host = databaseConfig.getString("database.host");
-			config.port = databaseConfig.getInt("database.port");
-			config.user = databaseConfig.getString("database.user");
-			config.password = databaseConfig.getString("database.password");
-			config.database = databaseConfig.getString("database.database");
-			config.table = databaseConfig.getString("database.table");
-		} catch (ConfigurationException e) {
-			e.printStackTrace();
-		}
-		
-		
-		
+
 		return config;
 	}
-	
+
 	public CompLevel[] getCompLevels() {
 		return compLevels;
 	}
-	
+
 	public int getEndXdaysbefore() {
 		return endXdaysbefore;
 	}
@@ -109,26 +86,6 @@ public class Config {
 	}
 	public boolean isSideboard() {
 		return sideboard;
-	}
-	
-	public String getDatabase() {
-		return database;
-	}
-	public String getHost() {
-		return host;
-	}
-	
-	public String getPassword() {
-		return password;
-	}
-	public int getPort() {
-		return port;
-	}
-	public String getUser() {
-		return user;
-	}
-	public String getTable() {
-		return table;
 	}
 
 }

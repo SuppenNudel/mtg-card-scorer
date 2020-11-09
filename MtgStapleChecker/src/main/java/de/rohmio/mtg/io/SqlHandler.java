@@ -24,7 +24,7 @@ import org.jooq.Record;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 
-import de.rohmio.mtg.Config;
+import de.rohmio.mtg.DatabaseConfig;
 import de.rohmio.mtg.MtgStapleChecker;
 import de.rohmio.mtg.model.CardStapleInfo;
 import de.rohmio.scryfall.api.model.enums.Format;
@@ -42,7 +42,7 @@ public class SqlHandler implements IOHandler {
 
 	private String url;
 
-	public SqlHandler(Config config) {
+	public SqlHandler(DatabaseConfig config) {
 		this(config.getHost(), config.getPort(), config.getUser(), config.getPassword(), config.getDatabase(),
 				config.getTable());
 	}

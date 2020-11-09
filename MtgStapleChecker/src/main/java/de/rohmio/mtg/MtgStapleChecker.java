@@ -36,14 +36,15 @@ public class MtgStapleChecker {
 
 	private static Logger log = Logger.getLogger(MtgStapleChecker.class.getName());
 
-	private static Config config;
+	private static MtgTop8Config config;
 
 	private static IOHandler ioHandler;
 
 	public static List<String> formats;
 	public static void main(String[] args) throws IOException, InterruptedException {
 		initLogger();
-		config = Config.loadConfig();
+		config = MtgTop8Config.loadConfig();
+
 		initScript();
 
 		List<String> cardnames = ScryfallApi.catalogs.catalog(CatalogType.CARD_NAMES).get().getData();
@@ -113,13 +114,7 @@ public class MtgStapleChecker {
 
 //		CsvHandler csvHandler = new CsvHandler(new File("results/competitive_score.csv"));
 //		csvHandler.init(fields);
-		SqlHandler sqlHandler = new SqlHandler(
-				config.getHost(),
-				config.getPort(),
-				config.getUser(),
-				config.getPassword(),
-				config.getDatabase(),
-				config.getTable());
+		SqlHandler sqlHandler = new SqlHandler(DatabaseConfig.loadConfig());
 //		GoogleSheetsHandler googleSheetsHandler = new GoogleSheetsHandler();
 
 		ioHandler = sqlHandler;
