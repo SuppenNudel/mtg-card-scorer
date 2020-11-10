@@ -57,4 +57,8 @@ public class CardStapleInfo {
 		return timestamp;
 	}
 
+	public void setCardname(String cardname) {
+		this.cardname = cardname;
+	}
+
 }

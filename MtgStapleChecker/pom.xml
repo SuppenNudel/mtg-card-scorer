@@ -55,7 +55,7 @@
 		<dependency>
 			<groupId>ScryfallApi</groupId>
 			<artifactId>ScryfallApi</artifactId>
-			<version>1.0.3</version>
+			<version>1.0.4</version>
 		</dependency>
 		<dependency>
 			<groupId>MtgTop8SearchApi</groupId>
