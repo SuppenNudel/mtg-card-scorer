@@ -1,9 +1,9 @@
-package de.rohmio.mtg.io;
+package de.rohmio.mtg.staplechecker.io;
 
 import java.io.IOException;
 import java.util.List;
 
-import de.rohmio.mtg.model.CardStapleInfo;
+import de.rohmio.mtg.staplechecker.model.CardStapleInfo;
 
 public interface IOHandler {
 

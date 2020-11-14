@@ -1,4 +1,4 @@
-package de.rohmio.mtg;
+package de.rohmio.mtg.staplechecker;
 
 import java.io.File;
 
@@ -31,8 +31,6 @@ public class DatabaseConfig {
 		} catch (ConfigurationException e) {
 			e.printStackTrace();
 		}
-
-
 
 		return config;
 	}

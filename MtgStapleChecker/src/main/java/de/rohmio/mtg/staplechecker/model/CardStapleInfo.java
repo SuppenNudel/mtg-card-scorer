@@ -1,10 +1,10 @@
-package de.rohmio.mtg.model;
+package de.rohmio.mtg.staplechecker.model;
 
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 
-import de.rohmio.scryfall.api.model.enums.Format;
+import de.rohmio.mtg.scryfall.api.model.enums.Format;
 
 public class CardStapleInfo {
 

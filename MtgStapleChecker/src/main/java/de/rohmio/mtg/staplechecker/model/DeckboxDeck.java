@@ -1,4 +1,4 @@
-package de.rohmio.mtg.model;
+package de.rohmio.mtg.staplechecker.model;
 
 public class DeckboxDeck {
 	

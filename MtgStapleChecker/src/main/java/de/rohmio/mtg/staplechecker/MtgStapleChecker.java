@@ -1,4 +1,4 @@
-package de.rohmio.mtg;
+package de.rohmio.mtg.staplechecker;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,20 +17,20 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.stream.Collectors;
 
-import de.rohmio.mtg.io.IOHandler;
-import de.rohmio.mtg.io.SqlHandler;
-import de.rohmio.mtg.model.CardStapleInfo;
-import de.rohmio.mtgtop8.api.MtgTop8Api;
-import de.rohmio.mtgtop8.api.model.enums.CompLevel;
-import de.rohmio.mtgtop8.api.model.enums.MtgTop8Format;
-import de.rohmio.scryfall.api.ScryfallApi;
-import de.rohmio.scryfall.api.model.CardFaceObject;
-import de.rohmio.scryfall.api.model.CardObject;
-import de.rohmio.scryfall.api.model.ListObject;
-import de.rohmio.scryfall.api.model.enums.CatalogType;
-import de.rohmio.scryfall.api.model.enums.Format;
-import de.rohmio.scryfall.api.model.enums.Layout;
-import de.rohmio.scryfall.api.model.enums.Legality;
+import de.rohmio.mtg.mtgtop8.api.MtgTop8Api;
+import de.rohmio.mtg.mtgtop8.api.model.enums.CompLevel;
+import de.rohmio.mtg.mtgtop8.api.model.enums.MtgTop8Format;
+import de.rohmio.mtg.scryfall.api.ScryfallApi;
+import de.rohmio.mtg.scryfall.api.model.CardFaceObject;
+import de.rohmio.mtg.scryfall.api.model.CardObject;
+import de.rohmio.mtg.scryfall.api.model.ListObject;
+import de.rohmio.mtg.scryfall.api.model.enums.CatalogType;
+import de.rohmio.mtg.scryfall.api.model.enums.Format;
+import de.rohmio.mtg.scryfall.api.model.enums.Layout;
+import de.rohmio.mtg.scryfall.api.model.enums.Legality;
+import de.rohmio.mtg.staplechecker.io.IOHandler;
+import de.rohmio.mtg.staplechecker.io.SqlHandler;
+import de.rohmio.mtg.staplechecker.model.CardStapleInfo;
 
 public class MtgStapleChecker {
 

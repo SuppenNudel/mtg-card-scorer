@@ -1,4 +1,4 @@
-package de.rohmio.mtg;
+package de.rohmio.mtg.staplechecker;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -8,9 +8,9 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 
-import de.rohmio.mtgtop8.api.model.enums.CompLevel;
-import de.rohmio.scryfall.api.model.enums.Format;
-import de.rohmio.scryfall.api.model.enums.Legality;
+import de.rohmio.mtg.mtgtop8.api.model.enums.CompLevel;
+import de.rohmio.mtg.scryfall.api.model.enums.Format;
+import de.rohmio.mtg.scryfall.api.model.enums.Legality;
 
 public class MtgTop8Config {
 

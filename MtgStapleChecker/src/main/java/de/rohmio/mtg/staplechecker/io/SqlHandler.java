@@ -1,7 +1,4 @@
-package de.rohmio.mtg.io;
-
-import static org.jooq.impl.DSL.field;
-import static org.jooq.impl.DSL.table;
+package de.rohmio.mtg.staplechecker.io;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -24,10 +21,10 @@ import org.jooq.Record;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 
-import de.rohmio.mtg.DatabaseConfig;
-import de.rohmio.mtg.MtgStapleChecker;
-import de.rohmio.mtg.model.CardStapleInfo;
-import de.rohmio.scryfall.api.model.enums.Format;
+import de.rohmio.mtg.scryfall.api.model.enums.Format;
+import de.rohmio.mtg.staplechecker.DatabaseConfig;
+import de.rohmio.mtg.staplechecker.MtgStapleChecker;
+import de.rohmio.mtg.staplechecker.model.CardStapleInfo;
 
 public class SqlHandler implements IOHandler {
 
@@ -85,20 +82,19 @@ public class SqlHandler implements IOHandler {
 	public void addDataset(CardStapleInfo cardStapleInfo) throws IOException {
 		Map<Field<Object>, Object> setMap = new HashMap<>();
 
-		setMap.put(field("cardname"), cardStapleInfo.getCardname());
-		setMap.put(field("timestamp"), cardStapleInfo.getTimestamp().getTime());
+		setMap.put(DSL.field("cardname"), cardStapleInfo.getCardname());
+		setMap.put(DSL.field("timestamp"), cardStapleInfo.getTimestamp().getTime());
 
 		for (Format format : Format.values()) {
 			Integer formatScore = cardStapleInfo.getFormatScore(format);
 			if (formatScore == null) {
 				continue;
 			}
-			setMap.put(field(format.name()), formatScore);
+			setMap.put(DSL.field(format.name()), formatScore);
 		}
 
 		doOperation(context -> {
-			InsertOnDuplicateSetMoreStep<Record> call = context.insertInto(table(table)).set(setMap)
-					.onDuplicateKeyUpdate().set(setMap);
+			InsertOnDuplicateSetMoreStep<Record> call = context.insertInto(DSL.table(table)).set(setMap).onDuplicateKeyUpdate().set(setMap);
 			try {
 				call.execute();
 				System.out.println("Added Dataset to Database: " + cardStapleInfo);
@@ -115,7 +111,7 @@ public class SqlHandler implements IOHandler {
 		return doOperation(context -> {
 			List<CardStapleInfo> result = context
 					.selectFrom(table)
-					.where(field(FIELD_CARDNAME).eq(DSL.any(cardnamesArray)))
+					.where(DSL.field(FIELD_CARDNAME).eq(DSL.any(cardnamesArray)))
 					.fetchInto(CardStapleInfo.class);
 			return result;
 		});
@@ -124,7 +120,7 @@ public class SqlHandler implements IOHandler {
 	@Override
 	public CardStapleInfo getCardStapleInfo(String cardname) {
 		return doOperation(context -> {
-			CardStapleInfo cardStapleInfo = context.selectFrom(table).where(field(FIELD_CARDNAME).eq(cardname))
+			CardStapleInfo cardStapleInfo = context.selectFrom(table).where(DSL.field(FIELD_CARDNAME).eq(cardname))
 					.fetchOneInto(CardStapleInfo.class);
 			return cardStapleInfo;
 		});
@@ -135,11 +131,11 @@ public class SqlHandler implements IOHandler {
 		List<Condition> conditions = new ArrayList<>();
 		// missing information
 		for (String format : MtgStapleChecker.formats) {
-			conditions.add(field(format).isNotNull());
+			conditions.add(DSL.field(format).isNotNull());
 		}
 		Calendar calendar = Calendar.getInstance();
 		calendar.add(Calendar.DAY_OF_YEAR, -daysAgo);
-		conditions.add(field(FIELD_TIMESTAMP).greaterThan(calendar.getTime()));
+		conditions.add(DSL.field(FIELD_TIMESTAMP).greaterThan(calendar.getTime()));
 
 		return doOperation(context -> {
 			List<CardStapleInfo> cardstapleinfos = context.selectFrom(table).where(conditions)

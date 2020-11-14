@@ -2,19 +2,18 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>MtgStapleChecker</groupId>
-	<artifactId>MtgStapleChecker</artifactId>
-	<version>0.0.3-SNAPSHOT</version>
+	<groupId>de.rohmio.mtg</groupId>
+	<artifactId>staple-checker</artifactId>
+	<version>0.0.5</version>
 
 	<build>
 		<sourceDirectory>src/main/java</sourceDirectory>
 		<plugins>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.8.0</version>
+				<version>3.8.1</version>
 				<configuration>
-					<source>1.8</source>
-					<target>1.8</target>
+					<release>11</release>
 				</configuration>
 			</plugin>
 
@@ -45,22 +44,15 @@
 		</plugins>
 	</build>
 	<dependencies>
-		<!-- https://mvnrepository.com/artifact/junit/junit -->
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>4.13</version>
-			<scope>test</scope>
+			<groupId>de.rohmio.mtg</groupId>
+			<artifactId>scryfall-api</artifactId>
+			<version>1.0.5</version>
 		</dependency>
 		<dependency>
-			<groupId>ScryfallApi</groupId>
-			<artifactId>ScryfallApi</artifactId>
-			<version>1.0.4</version>
-		</dependency>
-		<dependency>
-			<groupId>MtgTop8SearchApi</groupId>
-			<artifactId>MtgTop8SearchApi</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
+			<groupId>de.rohmio.mtg</groupId>
+			<artifactId>mtgtop8-api</artifactId>
+			<version>0.1.0</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->
 		<dependency>
@@ -72,18 +64,18 @@
 		<dependency>
 			<groupId>org.jooq</groupId>
 			<artifactId>jooq</artifactId>
-			<version>3.14.0</version>
+			<version>3.14.3</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jooq</groupId>
 			<artifactId>jooq-meta</artifactId>
-			<version>3.14.0</version>
+			<version>3.14.3</version>
 		</dependency>
-		<dependency>
-			<groupId>org.jooq</groupId>
-			<artifactId>jooq-codegen</artifactId>
-			<version>3.14.0</version>
-		</dependency>
+		<!-- <dependency> -->
+		<!-- <groupId>org.jooq</groupId> -->
+		<!-- <artifactId>jooq-codegen</artifactId> -->
+		<!-- <version>3.14.0</version> -->
+		<!-- </dependency> -->
 
 		<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-configuration2 -->
 		<dependency>
@@ -92,10 +84,16 @@
 			<version>2.7</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/commons-beanutils/commons-beanutils -->
-		<dependency>
-			<groupId>commons-beanutils</groupId>
-			<artifactId>commons-beanutils</artifactId>
-			<version>1.9.4</version>
-		</dependency>
+		<!-- <dependency> -->
+		<!-- <groupId>commons-beanutils</groupId> -->
+		<!-- <artifactId>commons-beanutils</artifactId> -->
+		<!-- <version>1.9.4</version> -->
+		<!-- </dependency> -->
+<!-- 		<dependency> -->
+<!-- 			<groupId>org.junit.jupiter</groupId> -->
+<!-- 			<artifactId>junit-jupiter-params</artifactId> -->
+<!-- 			<version>5.7.0</version> -->
+<!-- 			<scope>test</scope> -->
+<!-- 		</dependency> -->
 	</dependencies>
 </project>
