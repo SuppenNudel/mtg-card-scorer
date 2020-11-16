@@ -3,11 +3,11 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>de.rohmio.mtg</groupId>
-	<artifactId>staple-checker</artifactId>
+	<artifactId>card-scorer</artifactId>
 	<version>0.0.5</version>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<maven.compiler.release>15</maven.compiler.release>
+		<maven.compiler.release>11</maven.compiler.release>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -47,7 +47,7 @@
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-api</artifactId>
 			<version>5.7.0</version>
-			<!-- <scope>test</scope> -->
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
@@ -58,7 +58,7 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.8.0</version>
 				<configuration>
-					<release>15</release>
+					<release>${maven.compiler.release}</release>
 				</configuration>
 			</plugin>
 
@@ -75,7 +75,7 @@
 							<archive>
 								<manifest>
 									<mainClass>
-										de.rohmio.mtg.MtgStapleChecker
+										de.rohmio.mtg.cardscorer.MtgCardScorer
 									</mainClass>
 								</manifest>
 							</archive>

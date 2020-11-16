@@ -17,7 +17,6 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 import java.util.stream.Collectors;
 
-import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
 
 import de.rohmio.mtg.cardscorer.config.DatabaseConfig;
@@ -47,11 +46,11 @@ public class MtgCardScorer {
 	private static IOHandler ioHandler;
 
 	public static List<String> formats;
-	public static void main(String[] argv) throws IOException, InterruptedException {
+	public static void main(String[] args) throws IOException, InterruptedException {
 		initLogger();
 		try {
-			db_config = initDbConfig(argv[0]);
-			mtgtop8_config = initMtgTop8Config(argv[1]);
+			db_config = DatabaseConfig.loadConfig(args[0]);
+			mtgtop8_config = MtgTop8Config.loadConfig(args[1]);
 		} catch (ParameterException e) {
 			e.printStackTrace();
 			e.getJCommander().usage();
@@ -94,24 +93,6 @@ public class MtgCardScorer {
 		}
 		latch.await();
 		awaitTerminationAfterShutdown(executor);
-	}
-	
-	public static DatabaseConfig initDbConfig(String argv) {
-		DatabaseConfig db_params = new DatabaseConfig();
-		JCommander.newBuilder()
-		.addObject(db_params)
-		.build()
-		.parse(argv);
-		return db_params;
-	}
-	
-	public static MtgTop8Config initMtgTop8Config(String argv) {
-		MtgTop8Config mtgtop8_config = new MtgTop8Config();
-		JCommander.newBuilder()
-		.addObject(mtgtop8_config)
-		.build()
-		.parse(argv);
-		return mtgtop8_config;
 	}
 
 	public static void awaitTerminationAfterShutdown(ExecutorService threadPool) {
