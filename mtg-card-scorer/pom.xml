@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>de.rohmio.mtg</groupId>
 	<artifactId>card-scorer</artifactId>
-	<version>0.0.5</version>
+	<version>0.1.0</version>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.compiler.release>11</maven.compiler.release>
@@ -13,12 +13,12 @@
 		<dependency>
 			<groupId>de.rohmio.mtg</groupId>
 			<artifactId>scryfall-rest-api</artifactId>
-			<version>1.1.0</version>
+			<version>1.1.1</version>
 		</dependency>
 		<dependency>
 			<groupId>de.rohmio.mtg</groupId>
 			<artifactId>mtgtop8-rest-api</artifactId>
-			<version>0.2.0</version>
+			<version>0.2.1</version>
 		</dependency>
 
 		<dependency>

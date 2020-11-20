@@ -30,6 +30,7 @@ import de.rohmio.mtg.mtgtop8.api.model.MtgTop8Format;
 import de.rohmio.mtg.scryfall.api.ScryfallApi;
 import de.rohmio.mtg.scryfall.api.model.CardFaceObject;
 import de.rohmio.mtg.scryfall.api.model.CardObject;
+import de.rohmio.mtg.scryfall.api.model.CatalogObject;
 import de.rohmio.mtg.scryfall.api.model.CatalogType;
 import de.rohmio.mtg.scryfall.api.model.Format;
 import de.rohmio.mtg.scryfall.api.model.Layout;
@@ -49,8 +50,8 @@ public class MtgCardScorer {
 	public static void main(String[] args) throws IOException, InterruptedException {
 		initLogger();
 		try {
-			db_config = DatabaseConfig.loadConfig(args[0]);
-			mtgtop8_config = MtgTop8Config.loadConfig(args[1]);
+			db_config = DatabaseConfig.loadConfig("@database.config");
+			mtgtop8_config = MtgTop8Config.loadConfig("@mtgtop8.config");
 		} catch (ParameterException e) {
 			e.printStackTrace();
 			e.getJCommander().usage();
@@ -58,7 +59,8 @@ public class MtgCardScorer {
 		}
 		initScript();
 
-		List<String> cardnames = ScryfallApi.catalogs.catalog(CatalogType.CARD_NAMES).get().getData();
+		CatalogObject cardNamesCatalog = ScryfallApi.catalogs.catalog(CatalogType.CARD_NAMES).get();
+		List<String> cardnames = cardNamesCatalog.getData();
 		log.info("Total amount of cards: " + cardnames.size());
 
 		// filter out cards where their information is still relevant
