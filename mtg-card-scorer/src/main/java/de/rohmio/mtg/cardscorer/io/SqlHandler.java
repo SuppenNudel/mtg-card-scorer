@@ -106,6 +106,7 @@ public class SqlHandler implements IOHandler {
 		});
 	}
 
+	@Override
 	public List<CardStapleInfo> getCardStapleInfos(Collection<String> cardnames) {
 		Object[] cardnamesArray = cardnames.toArray(new String[cardnames.size()]);
 		return doOperation(context -> {
