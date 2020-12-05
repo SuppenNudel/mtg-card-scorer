@@ -50,8 +50,18 @@ public class MtgCardScorer {
 	public static void main(String[] args) throws IOException, InterruptedException {
 		initLogger();
 		try {
-			db_config = DatabaseConfig.loadConfig("@database.config");
-			mtgtop8_config = MtgTop8Config.loadConfig("@mtgtop8.config");
+			if(args.length == 0) {
+				db_config = DatabaseConfig.loadConfig("@database.config");
+				mtgtop8_config = MtgTop8Config.loadConfig("@mtgtop8.config");
+			} else if(args.length == 2) {
+				log.info("db_config: "+args[0]);
+				db_config = DatabaseConfig.loadConfig("@"+args[0]);
+
+				log.info("mtgtop8_config: "+args[1]);
+				mtgtop8_config = MtgTop8Config.loadConfig("@"+args[1]);
+			}
+			log.info("db_onfig: "+db_config);
+			log.info("mtgtop8_config: "+mtgtop8_config);
 		} catch (ParameterException e) {
 			e.printStackTrace();
 			e.getJCommander().usage();

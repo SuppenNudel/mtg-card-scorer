@@ -13,7 +13,7 @@ public class ConfigTest {
 
 	@Test
 	public void mtgtop8ConfigTest() {
-		MtgTop8Config mtgTop8Config = MtgTop8Config.loadConfig("@./mtgtop8_config");
+		MtgTop8Config mtgTop8Config = MtgTop8Config.loadConfig("@mtgtop8.config");
 		assertEquals(Arrays.asList(Legality.legal, Legality.restricted), mtgTop8Config.getLegalities());
 	}
 

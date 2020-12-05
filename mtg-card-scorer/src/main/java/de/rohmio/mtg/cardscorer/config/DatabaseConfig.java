@@ -28,6 +28,11 @@ public class DatabaseConfig {
 		JCommander.newBuilder().addObject(db_params).build().parse(configFile);
 		return db_params;
 	}
+	
+	@Override
+	public String toString() {
+		return String.format("host: %s; port: %s; user: %s; password: %s; database: %s; table: %s", host, port, user, password, database, table);
+	}
 
 	public String getHost() {
 		return host;

@@ -43,6 +43,12 @@ public class MtgTop8Config {
 		JCommander.newBuilder().addObject(mtgtop8_config).build().parse(configFile);
 		return mtgtop8_config;
 	}
+	
+	@Override
+	public String toString() {
+		return String.format("legalities: %s; comp-levels: %s; formats: %s; mainboard: %s; sideboard: %s; start: %s; end: %s; renewal-period: %s; card-names: %s",
+				legalities, compLevels, formats, mainboard, sideboard, startXdaysBefore, endXdaysBefore, renewXdaysBefore, cardNames);
+	}
 
 	public List<Legality> getLegalities() {
 		return legalities;
