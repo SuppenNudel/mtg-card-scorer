@@ -131,8 +131,8 @@ public class SqlHandler implements IOHandler {
 	public List<CardStapleInfo> getCardsNotNeeded(int daysAgo) {
 		List<Condition> conditions = new ArrayList<>();
 		// missing information
-		for (String format : MtgCardScorer.formats) {
-			conditions.add(DSL.field(format).isNotNull());
+		for (Format format : MtgCardScorer.CONFIG_MTGTOP8.getFormats()) {
+			conditions.add(DSL.field(format.name()).isNotNull());
 		}
 		Calendar calendar = Calendar.getInstance();
 		calendar.add(Calendar.DAY_OF_YEAR, -daysAgo);

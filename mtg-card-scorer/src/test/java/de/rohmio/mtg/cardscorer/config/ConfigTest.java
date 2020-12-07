@@ -7,14 +7,14 @@ import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
 
-import de.rohmio.mtg.scryfall.api.model.Legality;
+import de.rohmio.mtg.scryfall.api.model.Format;
 
 public class ConfigTest {
 
 	@Test
 	public void mtgtop8ConfigTest() {
 		MtgTop8Config mtgTop8Config = MtgTop8Config.loadConfig("@mtgtop8.config");
-		assertEquals(Arrays.asList(Legality.legal, Legality.restricted), mtgTop8Config.getLegalities());
+		assertEquals(Arrays.asList(Format.pioneer, Format.modern, Format.legacy), mtgTop8Config.getFormats());
 	}
 
 }
