@@ -30,6 +30,7 @@ import de.rohmio.mtg.mtgtop8.api.model.MtgTop8Format;
 import de.rohmio.mtg.scryfall.api.ScryfallApi;
 import de.rohmio.mtg.scryfall.api.endpoints.SearchEndpoint;
 import de.rohmio.mtg.scryfall.api.model.CardObject;
+import de.rohmio.mtg.scryfall.api.model.Direction;
 import de.rohmio.mtg.scryfall.api.model.Format;
 import de.rohmio.mtg.scryfall.api.model.Layout;
 import de.rohmio.mtg.scryfall.api.model.Legality;
@@ -50,21 +51,26 @@ public class MtgCardScorer {
 		initLogger();
 		initConfig(args);
 		initScript();
-		
+
 		ExecutorService executor = Executors.newFixedThreadPool(Integer.parseInt(args[0]));
 
 		String query = String.join(" or ", CONFIG_MTGTOP8.getFormats().stream().map(f -> "f:"+f).collect(Collectors.toList()));
+		query = "("+query+")";
 		List<String> configCardNames = CONFIG_MTGTOP8.getCardNames();
 		if(configCardNames != null) {
-			query = "("+query+") ("+String.join(" or ", configCardNames)+")";
+			query += " ("+String.join(" or ", configCardNames)+")";
 		}
-		
+		query += " AND not:reprint";
+
+		System.out.println(query);
+
 		int cardsSeen = 0;
 		ListObject<CardObject> cardList = null;
 		for (int page = 1; cardList == null || cardList.getHas_more(); ++page) {
 			SearchEndpoint search = ScryfallApi.cards
 					.search(query)
-					.order(Sorting.eur)
+					.order(Sorting.released)
+					.dir(Direction.desc)
 					.unique(Unique.cards)
 					.includeExtras(false)
 					.includeMultilingual(false)
@@ -80,7 +86,7 @@ public class MtgCardScorer {
 			if (cardList.getWarnings() != null) {
 				LOGGER.warning(cardList.getWarnings().toString());
 			}
-			
+
 			LOGGER.info(String.format("Iterating over cards %s / %s", cardsSeen += cardList.getData().size(), cardList.getTotal_cards()));
 
 			// filter out cards where their information is still relevant
@@ -94,9 +100,9 @@ public class MtgCardScorer {
 					.stream()
 					.filter(c -> !cardNamesNotNeededAnymore.contains(c.getName()))
 					.collect(Collectors.toList());
-			
+
 			LOGGER.info("Amount of cards to request in this cycle: " + remainingCards.size());
-			
+
 			CountDownLatch latch = new CountDownLatch(remainingCards.size());
 			for (CardObject scryfallCard : remainingCards) {
 				executor.execute(() -> {
@@ -114,7 +120,7 @@ public class MtgCardScorer {
 					}
 				});
 			}
-			
+
 			latch.await();
 		}
 		awaitTerminationAfterShutdown(executor);
@@ -128,7 +134,7 @@ public class MtgCardScorer {
 		handler.setFormatter(new SimpleFormatter());
 		LOGGER.addHandler(handler);
 	}
-	
+
 	public static void initConfig(String[] args) {
 		try {
 			if(args.length == 1) {
@@ -174,7 +180,7 @@ public class MtgCardScorer {
 	        Thread.currentThread().interrupt();
 	    }
 	}
-	
+
 	private static String toMtgTop8CardName(CardObject scryfallCard) {
 		if(scryfallCard.getCard_faces() == null || scryfallCard.getLayout() == Layout.split) {
 			return scryfallCard.getName();
@@ -189,7 +195,7 @@ public class MtgCardScorer {
 		CardStapleInfo cardStapleInfo = new CardStapleInfo(scryfallCard.getName());
 
 		String mtgtop8CardName = toMtgTop8CardName(scryfallCard);
-		
+
 		List<Thread> threads = new ArrayList<>();
 		for (Format format : CONFIG_MTGTOP8.getFormats()) {
 			// is it even legal
