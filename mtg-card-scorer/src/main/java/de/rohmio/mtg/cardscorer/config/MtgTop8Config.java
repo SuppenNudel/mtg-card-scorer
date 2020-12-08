@@ -35,14 +35,17 @@ public class MtgTop8Config {
 	@Parameter(names = "-renewal-period")
 	private int renewXdaysBefore;
 
-	@Parameter(names = "-card-names", description = "Card Names to check")
+	@Parameter(description = "Card Names to check")
 	private List<String> cardNames;
 
 	private Map<CompLevel, Integer> compLevelsMap;
 	
 	public static MtgTop8Config loadConfig(String configFile) {
 		MtgTop8Config mtgtop8_config = new MtgTop8Config();
-		JCommander.newBuilder().addObject(mtgtop8_config).build().parse(configFile);
+		JCommander.newBuilder()
+		.addObject(mtgtop8_config)
+		.build()
+		.parse(configFile);
 		
 		mtgtop8_config.compLevelsMap = mtgtop8_config.compLevels
 			.stream()
@@ -90,6 +93,10 @@ public class MtgTop8Config {
 
 	public int getRenewXdaysBefore() {
 		return renewXdaysBefore;
+	}
+	
+	public List<String> getCardNames() {
+		return cardNames;
 	}
 
 }

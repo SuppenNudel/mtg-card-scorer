@@ -31,8 +31,10 @@ import de.rohmio.mtg.scryfall.api.ScryfallApi;
 import de.rohmio.mtg.scryfall.api.endpoints.SearchEndpoint;
 import de.rohmio.mtg.scryfall.api.model.CardObject;
 import de.rohmio.mtg.scryfall.api.model.Format;
+import de.rohmio.mtg.scryfall.api.model.Layout;
 import de.rohmio.mtg.scryfall.api.model.Legality;
 import de.rohmio.mtg.scryfall.api.model.ListObject;
+import de.rohmio.mtg.scryfall.api.model.Sorting;
 import de.rohmio.mtg.scryfall.api.model.Unique;
 
 public class MtgCardScorer {
@@ -49,13 +51,20 @@ public class MtgCardScorer {
 		initConfig(args);
 		initScript();
 		
-		ExecutorService executor = Executors.newFixedThreadPool(20);
+		ExecutorService executor = Executors.newFixedThreadPool(Integer.parseInt(args[0]));
 
 		String query = String.join(" or ", CONFIG_MTGTOP8.getFormats().stream().map(f -> "f:"+f).collect(Collectors.toList()));
+		List<String> configCardNames = CONFIG_MTGTOP8.getCardNames();
+		if(configCardNames != null) {
+			query = "("+query+") ("+String.join(" or ", configCardNames)+")";
+		}
+		
+		int cardsSeen = 0;
 		ListObject<CardObject> cardList = null;
 		for (int page = 1; cardList == null || cardList.getHas_more(); ++page) {
 			SearchEndpoint search = ScryfallApi.cards
 					.search(query)
+					.order(Sorting.eur)
 					.unique(Unique.cards)
 					.includeExtras(false)
 					.includeMultilingual(false)
@@ -72,6 +81,7 @@ public class MtgCardScorer {
 				LOGGER.warning(cardList.getWarnings().toString());
 			}
 			
+			LOGGER.info(String.format("Iterating over cards %s / %s", cardsSeen += cardList.getData().size(), cardList.getTotal_cards()));
 
 			// filter out cards where their information is still relevant
 			List<String> cardNamesNotNeededAnymore = ioHandler
@@ -84,17 +94,18 @@ public class MtgCardScorer {
 					.stream()
 					.filter(c -> !cardNamesNotNeededAnymore.contains(c.getName()))
 					.collect(Collectors.toList());
+			
 			LOGGER.info("Amount of cards to request in this cycle: " + remainingCards.size());
 			
-			// go through each card
 			CountDownLatch latch = new CountDownLatch(remainingCards.size());
-			
 			for (CardObject scryfallCard : remainingCards) {
 				executor.execute(() -> {
 					try {
 						System.out.println(scryfallCard);
 						CardStapleInfo cardStapleInfo = gatherCardStapleInfo(scryfallCard);
-						if(cardStapleInfo != null) {
+						if(cardStapleInfo == null) {
+							LOGGER.severe("No information about "+scryfallCard+" from mtgtop8");
+						} else {
 							ioHandler.addDataset(cardStapleInfo);
 						}
 						latch.countDown();
@@ -120,15 +131,15 @@ public class MtgCardScorer {
 	
 	public static void initConfig(String[] args) {
 		try {
-			if(args.length == 0) {
+			if(args.length == 1) {
 				CONFIG_DB = DatabaseConfig.loadConfig("@database.config");
 				CONFIG_MTGTOP8 = MtgTop8Config.loadConfig("@mtgtop8.config");
-			} else if(args.length == 2) {
-				LOGGER.info("db_config: "+args[0]);
-				CONFIG_DB = DatabaseConfig.loadConfig("@"+args[0]);
+			} else if(args.length == 3) {
+				LOGGER.info("db_config: "+args[1]);
+				CONFIG_DB = DatabaseConfig.loadConfig("@"+args[1]);
 
-				LOGGER.info("mtgtop8_config: "+args[1]);
-				CONFIG_MTGTOP8 = MtgTop8Config.loadConfig("@"+args[1]);
+				LOGGER.info("mtgtop8_config: "+args[2]);
+				CONFIG_MTGTOP8 = MtgTop8Config.loadConfig("@"+args[2]);
 			}
 			LOGGER.info("db_onfig: "+CONFIG_DB);
 			LOGGER.info("mtgtop8_config: "+CONFIG_MTGTOP8);
@@ -163,13 +174,22 @@ public class MtgCardScorer {
 	        Thread.currentThread().interrupt();
 	    }
 	}
-
+	
+	private static String toMtgTop8CardName(CardObject scryfallCard) {
+		if(scryfallCard.getCard_faces() == null || scryfallCard.getLayout() == Layout.split) {
+			return scryfallCard.getName();
+		} else {
+			return scryfallCard.getCard_faces().get(0).getName();
+		}
+	}
 
 	public static CardStapleInfo gatherCardStapleInfo(CardObject scryfallCard) throws IOException {
 		LOGGER.info("Doing card: " + scryfallCard);
 
 		CardStapleInfo cardStapleInfo = new CardStapleInfo(scryfallCard.getName());
 
+		String mtgtop8CardName = toMtgTop8CardName(scryfallCard);
+		
 		List<Thread> threads = new ArrayList<>();
 		for (Format format : CONFIG_MTGTOP8.getFormats()) {
 			// is it even legal
@@ -178,12 +198,11 @@ public class MtgCardScorer {
 				cardStapleInfo.setFormatScore(format, -1);
 			} else {
 				for (CompLevel compLevel : CONFIG_MTGTOP8.getCompLevels()) {
-					String cardName = scryfallCard.getName();
 					Thread thread = new Thread(() -> {
-						int deckCount = requestDeckCountMultiTry(cardName, format, compLevel, 3);
+						int deckCount = requestDeckCountMultiTry(mtgtop8CardName, format, compLevel, 3);
 						int factor = CONFIG_MTGTOP8.getCompLevelFactor(compLevel);
 						cardStapleInfo.setFormatScore(format, deckCount * factor);
-					}, cardName + " in " + format);
+					}, mtgtop8CardName + " in " + format);
 					threads.add(thread);
 					thread.start();
 				}
