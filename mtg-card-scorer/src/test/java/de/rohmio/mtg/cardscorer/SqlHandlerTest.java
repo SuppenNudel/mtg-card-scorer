@@ -1,4 +1,4 @@
-package de.rohmio.mtg;
+package de.rohmio.mtg.cardscorer;
 
 import java.io.IOException;
 import java.util.Arrays;

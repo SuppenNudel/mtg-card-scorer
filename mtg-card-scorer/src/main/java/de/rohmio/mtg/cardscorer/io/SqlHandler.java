@@ -121,7 +121,9 @@ public class SqlHandler implements IOHandler {
 	@Override
 	public CardStapleInfo getCardStapleInfo(String cardname) {
 		return doOperation(context -> {
-			CardStapleInfo cardStapleInfo = context.selectFrom(table).where(DSL.field(FIELD_CARDNAME).eq(cardname))
+			CardStapleInfo cardStapleInfo = context
+					.selectFrom(table)
+					.where(DSL.field(FIELD_CARDNAME).eq(cardname))
 					.fetchOneInto(CardStapleInfo.class);
 			return cardStapleInfo;
 		});
