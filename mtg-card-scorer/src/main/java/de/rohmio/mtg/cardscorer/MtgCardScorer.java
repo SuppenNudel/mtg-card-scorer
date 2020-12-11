@@ -93,7 +93,7 @@ public class MtgCardScorer {
 			List<String> cardNamesNotNeededAnymore = ioHandler
 					.getCardsNotNeeded(CONFIG_MTGTOP8.getRenewXdaysBefore())
 					.stream()
-					.map(CardStapleInfo::getCardname)
+					.map(CardStapleInfo::getCardName)
 					.collect(Collectors.toList());
 			List<CardObject> remainingCards = cardList
 					.getData()
@@ -163,7 +163,6 @@ public class MtgCardScorer {
 //		GoogleSheetsHandler googleSheetsHandler = new GoogleSheetsHandler();
 
 		ioHandler = sqlHandler;
-		ioHandler.init();
 		LOGGER.info(String.format("Using %s as ioHandler", ioHandler));
 
 		return ioHandler;
