@@ -34,7 +34,6 @@ import de.rohmio.mtg.scryfall.api.model.Direction;
 import de.rohmio.mtg.scryfall.api.model.Format;
 import de.rohmio.mtg.scryfall.api.model.Layout;
 import de.rohmio.mtg.scryfall.api.model.Legality;
-import de.rohmio.mtg.scryfall.api.model.ListObject;
 import de.rohmio.mtg.scryfall.api.model.Sorting;
 import de.rohmio.mtg.scryfall.api.model.Unique;
 
@@ -63,32 +62,17 @@ public class MtgCardScorer {
 		query += " AND not:reprint";
 
 		System.out.println(query);
-
-		int cardsSeen = 0;
-		ListObject<CardObject> cardList = null;
-		for (int page = 1; cardList == null || cardList.getHas_more(); ++page) {
-			SearchEndpoint search = ScryfallApi.cards
-					.search(query)
-					.order(Sorting.released)
-					.dir(Direction.desc)
-					.unique(Unique.cards)
-					.includeExtras(false)
-					.includeMultilingual(false)
-					.includeVariations(false)
-					.page(page);
-			try {
-				cardList = search.get();
-			} catch (Exception e) {
-				e.printStackTrace();
-				page--;
-				break;
-			}
-			if (cardList.getWarnings() != null) {
-				LOGGER.warning(cardList.getWarnings().toString());
-			}
-
-			LOGGER.info(String.format("Iterating over cards %s / %s", cardsSeen += cardList.getData().size(), cardList.getTotal_cards()));
-
+		
+		SearchEndpoint pagedSearch = ScryfallApi.cards
+				.search(query)
+				.order(Sorting.released)
+				.dir(Direction.desc)
+				.unique(Unique.cards)
+				.includeExtras(false)
+				.includeMultilingual(false)
+				.includeVariations(false);
+		
+		pagedSearch.getAll(cardList -> {
 			// filter out cards where their information is still relevant
 			List<String> cardNamesNotNeededAnymore = ioHandler
 					.getCardsNotNeeded(CONFIG_MTGTOP8.getRenewXdaysBefore())
@@ -96,7 +80,6 @@ public class MtgCardScorer {
 					.map(CardStapleInfo::getCardName)
 					.collect(Collectors.toList());
 			List<CardObject> remainingCards = cardList
-					.getData()
 					.stream()
 					.filter(c -> !cardNamesNotNeededAnymore.contains(c.getName()))
 					.collect(Collectors.toList());
@@ -121,8 +104,13 @@ public class MtgCardScorer {
 				});
 			}
 
-			latch.await();
-		}
+			try {
+				latch.await();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			
+		});
 		awaitTerminationAfterShutdown(executor);
 	}
 

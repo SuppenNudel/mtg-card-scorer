@@ -41,14 +41,6 @@ public class CardStapleInfo {
 	private String cardname;
 	private Calendar timestamp;
 	
-//	private Integer standard;
-//	private Integer pioneer;
-//	private Integer modern;
-//	private Integer legacy;
-//	private Integer pauper;
-//	private Integer vintage;
-//	private Integer commander;
-	
 	private Map<Format, Integer> formatScores = new HashMap<>();
 	
 	@SuppressWarnings("unused")
