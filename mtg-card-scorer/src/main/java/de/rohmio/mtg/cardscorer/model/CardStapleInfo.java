@@ -1,23 +1,22 @@
 package de.rohmio.mtg.cardscorer.model;
 
 import static org.jooq.impl.SQLDataType.INTEGER;
+import static org.jooq.impl.SQLDataType.LOCALDATETIME;
 import static org.jooq.impl.SQLDataType.VARCHAR;
 
 import java.time.LocalDateTime;
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.jooq.Field;
 import org.jooq.impl.DSL;
-import org.jooq.impl.SQLDataType;
 
 import de.rohmio.mtg.scryfall.api.model.Format;
 
 public class CardStapleInfo {
 
 	public static final Field<String> CARDNAME = DSL.field("cardname", VARCHAR);
-	public static final Field<LocalDateTime> TIMESTAMP = DSL.field("timestamp", SQLDataType.LOCALDATETIME);
+	public static final Field<LocalDateTime> TIMESTAMP = DSL.field("timestamp", LOCALDATETIME);
 	public static final Field<Integer> STANDARD = DSL.field("standard", INTEGER);
 	public static final Field<Integer> PIONEER = DSL.field("pioneer", INTEGER);
 	public static final Field<Integer> MODERN = DSL.field("modern", INTEGER);
@@ -39,7 +38,7 @@ public class CardStapleInfo {
 	}
 
 	private String cardname;
-	private Calendar timestamp;
+	private LocalDateTime timestamp;
 	
 	private Map<Format, Integer> formatScores = new HashMap<>();
 	
@@ -85,11 +84,11 @@ public class CardStapleInfo {
 		this.cardname = cardName;
 	}
 
-	public Calendar getTimestamp() {
+	public LocalDateTime getTimestamp() {
 		return timestamp;
 	}
 
-	public void setTimestamp(Calendar timestamp) {
+	public void setTimestamp(LocalDateTime timestamp) {
 		this.timestamp = timestamp;
 	}
 

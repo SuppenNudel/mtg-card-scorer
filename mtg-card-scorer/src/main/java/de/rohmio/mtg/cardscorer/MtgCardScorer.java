@@ -3,6 +3,7 @@ package de.rohmio.mtg.cardscorer;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -180,6 +181,7 @@ public class MtgCardScorer {
 		LOGGER.info("Doing card: " + scryfallCard);
 
 		CardStapleInfo cardStapleInfo = new CardStapleInfo(scryfallCard.getName());
+		cardStapleInfo.setTimestamp(LocalDateTime.now());
 
 		String mtgtop8CardName = toMtgTop8CardName(scryfallCard);
 
