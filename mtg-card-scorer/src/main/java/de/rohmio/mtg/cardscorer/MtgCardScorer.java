@@ -20,14 +20,14 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.ParameterException;
 
-import de.rohmio.mtg.cardscorer.config.DatabaseConfig;
+import de.rohm.io.mtg.mtgtop8.api.model.CompLevel;
+import de.rohm.io.mtg.mtgtop8.api.model.MtgTop8Format;
+import de.rohmio.mtg.cardscore.database.CardStapleInfo;
+import de.rohmio.mtg.cardscore.database.DatabaseConfig;
+import de.rohmio.mtg.cardscore.database.SqlConnector;
+import de.rohmio.mtg.cardscore.database.StorageConnector;
 import de.rohmio.mtg.cardscorer.config.MtgTop8Config;
-import de.rohmio.mtg.cardscorer.io.IOHandler;
-import de.rohmio.mtg.cardscorer.io.SqlHandler;
-import de.rohmio.mtg.cardscorer.model.CardStapleInfo;
 import de.rohmio.mtg.mtgtop8.api.MtgTop8Api;
-import de.rohmio.mtg.mtgtop8.api.model.CompLevel;
-import de.rohmio.mtg.mtgtop8.api.model.MtgTop8Format;
 import de.rohmio.mtg.scryfall.api.ScryfallApi;
 import de.rohmio.mtg.scryfall.api.endpoints.SearchEndpoint;
 import de.rohmio.mtg.scryfall.api.model.CardObject;
@@ -45,7 +45,7 @@ public class MtgCardScorer {
 	public static MtgTop8Config CONFIG_MTGTOP8;
 	public static DatabaseConfig CONFIG_DB;
 
-	private static IOHandler ioHandler;
+	private static StorageConnector storageConnector;
 
 	public static void main(String[] args) throws IOException, InterruptedException {
 		initLogger();
@@ -66,17 +66,17 @@ public class MtgCardScorer {
 		
 		SearchEndpoint pagedSearch = ScryfallApi.cards
 				.search(query)
-				.order(Sorting.released)
-				.dir(Direction.desc)
-				.unique(Unique.cards)
+				.order(Sorting.RELEASED)
+				.dir(Direction.DESC)
+				.unique(Unique.CARDS)
 				.includeExtras(false)
 				.includeMultilingual(false)
 				.includeVariations(false);
 		
 		pagedSearch.getAll(cardList -> {
 			// filter out cards where their information is still relevant
-			List<String> cardNamesNotNeededAnymore = ioHandler
-					.getCardsNotNeeded(CONFIG_MTGTOP8.getRenewXdaysBefore())
+			List<String> cardNamesNotNeededAnymore = storageConnector
+					.getCardsNotNeeded(CONFIG_MTGTOP8.getRenewXdaysBefore(), CONFIG_MTGTOP8.getFormats())
 					.stream()
 					.map(CardStapleInfo::getCardName)
 					.collect(Collectors.toList());
@@ -96,7 +96,7 @@ public class MtgCardScorer {
 						if(cardStapleInfo == null) {
 							LOGGER.severe("No information about "+scryfallCard+" from mtgtop8");
 						} else {
-							ioHandler.addDataset(cardStapleInfo);
+							storageConnector.addDataset(cardStapleInfo);
 						}
 						latch.countDown();
 					} catch (IOException e) {
@@ -145,16 +145,13 @@ public class MtgCardScorer {
 		}
 	}
 
-	public static IOHandler initScript() throws IOException {
-//		CsvHandler csvHandler = new CsvHandler(new File("results/competitive_score.csv"));
-//		csvHandler.init(fields);
-		SqlHandler sqlHandler = new SqlHandler(CONFIG_DB);
-//		GoogleSheetsHandler googleSheetsHandler = new GoogleSheetsHandler();
+	public static StorageConnector initScript() throws IOException {
+		StorageConnector storageConnector = new SqlConnector(CONFIG_DB);
 
-		ioHandler = sqlHandler;
-		LOGGER.info(String.format("Using %s as ioHandler", ioHandler));
+		MtgCardScorer.storageConnector = storageConnector;
+		LOGGER.info(String.format("Using %s as ioHandler", storageConnector));
 
-		return ioHandler;
+		return storageConnector;
 	}
 
 	public static void awaitTerminationAfterShutdown(ExecutorService threadPool) {
@@ -170,7 +167,7 @@ public class MtgCardScorer {
 	}
 
 	private static String toMtgTop8CardName(CardObject scryfallCard) {
-		if(scryfallCard.getCard_faces() == null || scryfallCard.getLayout() == Layout.split) {
+		if(scryfallCard.getCard_faces() == null || scryfallCard.getLayout() == Layout.SPLIT) {
 			return scryfallCard.getName();
 		} else {
 			return scryfallCard.getCard_faces().get(0).getName();
@@ -186,10 +183,11 @@ public class MtgCardScorer {
 		String mtgtop8CardName = toMtgTop8CardName(scryfallCard);
 
 		List<Thread> threads = new ArrayList<>();
-		for (Format format : CONFIG_MTGTOP8.getFormats()) {
+		for (MtgTop8Format format : CONFIG_MTGTOP8.getFormats()) {
 			// is it even legal
-			Legality legality = scryfallCard.getLegalities().get(format);
-			if (Arrays.asList(Legality.banned, Legality.not_legal).contains(legality)) {
+			Format scryfallFormat = Format.valueOf(format.name());
+			Legality legality = scryfallCard.getLegalities().get(scryfallFormat);
+			if (Arrays.asList(Legality.BANNED, Legality.NOT_LEGAL).contains(legality)) {
 				cardStapleInfo.setFormatScore(format, -1);
 			} else {
 				for (CompLevel compLevel : CONFIG_MTGTOP8.getCompLevels()) {
@@ -215,7 +213,7 @@ public class MtgCardScorer {
 		return cardStapleInfo;
 	}
 
-    private static int requestDeckCountMultiTry(String normalizedCardName, Format format, CompLevel compLevel, int numberOfTries) {
+    private static int requestDeckCountMultiTry(String normalizedCardName, MtgTop8Format format, CompLevel compLevel, int numberOfTries) {
         boolean successful = false;
         for (int tryNo = 0; tryNo <= 3 && !successful; ++tryNo) {
             try {
@@ -234,7 +232,7 @@ public class MtgCardScorer {
         return -1;
     }
 
-    private static int requestDeckCount(String normalizedCardName, Format format, CompLevel compLevel) throws IOException {
+    private static int requestDeckCount(String normalizedCardName, MtgTop8Format format, CompLevel compLevel) throws IOException {
     	int startXdaysbefore = CONFIG_MTGTOP8.getStartXdaysBefore();
     	Calendar startdate = Calendar.getInstance();
 		startdate.add(Calendar.DAY_OF_YEAR, -startXdaysbefore);
@@ -250,7 +248,7 @@ public class MtgCardScorer {
     	.enddate(enddate)
     	.cards(normalizedCardName)
     	.compLevel(compLevel)
-    	.format(MtgTop8Format.valueOf(format.getTop8Code()))
+    	.format(MtgTop8Format.valueOf(format.getId()))
     	.get();
 
         LOGGER.info(String.format("Requesting from mtgtop8; Card: '%s' Format: '%s'; CompLevel: '%s'",

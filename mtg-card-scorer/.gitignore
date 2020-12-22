@@ -1,8 +1,5 @@
 /bin/
 /target/
-/results/
-/resultsGoldfish/
-/latest.log
 /logs/
 /config.properties
 /database_config

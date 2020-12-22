@@ -13,29 +13,18 @@
 	<dependencies>
 		<dependency>
 			<groupId>de.rohmio.mtg</groupId>
+			<artifactId>card-score-connector</artifactId>
+			<version>0.0.1</version>
+		</dependency>
+		<dependency>
+			<groupId>de.rohmio.mtg</groupId>
 			<artifactId>scryfall-rest-api</artifactId>
-			<version>1.4.0</version>
+			<version>1.5.0</version>
 		</dependency>
 		<dependency>
 			<groupId>de.rohmio.mtg</groupId>
 			<artifactId>mtgtop8-rest-api</artifactId>
-			<version>0.2.1</version>
-		</dependency>
-
-		<dependency>
-			<groupId>mysql</groupId>
-			<artifactId>mysql-connector-java</artifactId>
-			<version>8.0.20</version>
-		</dependency>
-		<dependency>
-			<groupId>org.jooq</groupId>
-			<artifactId>jooq</artifactId>
-			<version>3.14.3</version>
-		</dependency>
-		<dependency>
-			<groupId>org.jooq</groupId>
-			<artifactId>jooq-meta</artifactId>
-			<version>3.14.3</version>
+			<version>0.3.0</version>
 		</dependency>
 
 		<dependency>

@@ -9,8 +9,8 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
-import de.rohmio.mtg.mtgtop8.api.model.CompLevel;
-import de.rohmio.mtg.scryfall.api.model.Format;
+import de.rohm.io.mtg.mtgtop8.api.model.CompLevel;
+import de.rohm.io.mtg.mtgtop8.api.model.MtgTop8Format;
 
 public class MtgTop8Config {
 
@@ -18,7 +18,7 @@ public class MtgTop8Config {
 	private List<String> compLevels;
 
 	@Parameter(names = "-formats")
-	private List<Format> formats;
+	private List<MtgTop8Format> formats;
 
 	@Parameter(names = "-mainboard")
 	private boolean mainboard;
@@ -71,7 +71,7 @@ public class MtgTop8Config {
 		return compLevelsMap.get(compLevel);
 	}
 
-	public List<Format> getFormats() {
+	public List<MtgTop8Format> getFormats() {
 		return formats;
 	}
 

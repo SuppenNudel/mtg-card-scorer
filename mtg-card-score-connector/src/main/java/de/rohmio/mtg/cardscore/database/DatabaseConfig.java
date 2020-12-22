@@ -1,4 +1,4 @@
-package de.rohmio.mtg.cardscorer.config;
+package de.rohmio.mtg.cardscore.database;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;

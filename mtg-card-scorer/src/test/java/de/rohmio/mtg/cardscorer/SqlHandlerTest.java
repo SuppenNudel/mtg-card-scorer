@@ -7,26 +7,26 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import de.rohmio.mtg.cardscorer.config.DatabaseConfig;
-import de.rohmio.mtg.cardscorer.io.IOHandler;
-import de.rohmio.mtg.cardscorer.io.SqlHandler;
-import de.rohmio.mtg.cardscorer.model.CardStapleInfo;
-import de.rohmio.mtg.scryfall.api.model.Format;
+import de.rohm.io.mtg.mtgtop8.api.model.MtgTop8Format;
+import de.rohmio.mtg.cardscore.database.CardStapleInfo;
+import de.rohmio.mtg.cardscore.database.DatabaseConfig;
+import de.rohmio.mtg.cardscore.database.SqlConnector;
+import de.rohmio.mtg.cardscore.database.StorageConnector;
 
 public class SqlHandlerTest {
 
-	private IOHandler handler;
+	private StorageConnector handler;
 
 	@BeforeEach
 	public void init() throws IOException {
 		DatabaseConfig db_config = DatabaseConfig.loadConfig("@database.config");
-		handler = new SqlHandler(db_config);
+		handler = new SqlConnector(db_config);
 	}
 
 	@Test
 	public void addDatasetTest() {
 		CardStapleInfo cardStapleInfo = new CardStapleInfo("TEST CARD");
-		cardStapleInfo.setFormatScore(Format.modern, 5158);
+		cardStapleInfo.setFormatScore(MtgTop8Format.MODERN, 5158);
 		System.out.println(cardStapleInfo);
 		handler.addDataset(cardStapleInfo);
 	}
