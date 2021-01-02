@@ -81,7 +81,6 @@ public class MtgCardScorer {
 					.map(CardStapleInfo::getCardName)
 					.collect(Collectors.toList());
 			List<CardObject> remainingCards = cardList
-					.getData()
 					.stream()
 					.filter(c -> !cardNamesNotNeededAnymore.contains(c.getName()))
 					.collect(Collectors.toList());
