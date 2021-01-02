@@ -63,7 +63,7 @@ public class MtgCardScorer {
 		query += " AND not:reprint";
 
 		System.out.println(query);
-		
+
 		SearchEndpoint pagedSearch = ScryfallApi.cards
 				.search(query)
 				.order(Sorting.RELEASED)
@@ -72,7 +72,7 @@ public class MtgCardScorer {
 				.includeExtras(false)
 				.includeMultilingual(false)
 				.includeVariations(false);
-		
+
 		pagedSearch.getAll(cardList -> {
 			// filter out cards where their information is still relevant
 			List<String> cardNamesNotNeededAnymore = storageConnector
@@ -81,6 +81,7 @@ public class MtgCardScorer {
 					.map(CardStapleInfo::getCardName)
 					.collect(Collectors.toList());
 			List<CardObject> remainingCards = cardList
+					.getData()
 					.stream()
 					.filter(c -> !cardNamesNotNeededAnymore.contains(c.getName()))
 					.collect(Collectors.toList());
@@ -110,7 +111,7 @@ public class MtgCardScorer {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			
+
 		});
 		awaitTerminationAfterShutdown(executor);
 	}

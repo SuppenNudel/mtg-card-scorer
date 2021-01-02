@@ -15,8 +15,8 @@ import de.rohm.io.mtg.mtgtop8.api.model.MtgTop8Format;
 
 public class CardStapleInfo {
 
-	public static final Field<String> CARDNAME = DSL.field("cardname", VARCHAR);
-	public static final Field<LocalDateTime> TIMESTAMP = DSL.field("timestamp", LOCALDATETIME);
+	public static final Field<String> CARDNAME = DSL.field("cardname", VARCHAR.nullable(false));
+	public static final Field<LocalDateTime> TIMESTAMP = DSL.field("timestamp", LOCALDATETIME.nullable(false));
 	public static final Field<Integer> STANDARD = DSL.field("standard", INTEGER);
 	public static final Field<Integer> PIONEER = DSL.field("pioneer", INTEGER);
 	public static final Field<Integer> MODERN = DSL.field("modern", INTEGER);
@@ -24,9 +24,9 @@ public class CardStapleInfo {
 	public static final Field<Integer> PAUPER = DSL.field("pauper", INTEGER);
 	public static final Field<Integer> VINTAGE = DSL.field("vintage", INTEGER);
 	public static final Field<Integer> COMMANDER = DSL.field("commander", INTEGER);
-	
+
 	public static final Map<MtgTop8Format, Field<Integer>> FORMAT_FIELD = new HashMap<>();
-	
+
 	static {
 		FORMAT_FIELD.put(MtgTop8Format.STANDARD, STANDARD);
 		FORMAT_FIELD.put(MtgTop8Format.PIONEER, PIONEER);
@@ -39,9 +39,9 @@ public class CardStapleInfo {
 
 	private String cardname;
 	private LocalDateTime timestamp;
-	
+
 	private Map<MtgTop8Format, Integer> formatScores = new HashMap<>();
-	
+
 	@SuppressWarnings("unused")
 	private CardStapleInfo() {}
 
@@ -51,7 +51,7 @@ public class CardStapleInfo {
 
 	@Override
 	public String toString() {
-		return cardname + " - " + formatScores;
+		return String.format("%s (%s) - %s", cardname, timestamp, formatScores);
 	}
 
 	public boolean anyIsNull() {
@@ -143,9 +143,9 @@ public class CardStapleInfo {
 	public Integer getVintage() {
 		return getFormatScore(MtgTop8Format.VINTAGE);
 	}
-	
+
 	public Integer getCommander() {
 		return getFormatScore(MtgTop8Format.MTGO_COMMANDER);
 	}
-	
+
 }

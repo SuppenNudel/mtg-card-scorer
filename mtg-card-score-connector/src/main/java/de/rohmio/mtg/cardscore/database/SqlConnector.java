@@ -13,9 +13,11 @@ import java.util.function.Function;
 import java.util.logging.Logger;
 
 import org.jooq.Condition;
+import org.jooq.CreateTableColumnStep;
 import org.jooq.DSLContext;
 import org.jooq.Field;
 import org.jooq.InsertOnDuplicateSetMoreStep;
+import org.jooq.InsertSetMoreStep;
 import org.jooq.Record;
 import org.jooq.SQLDialect;
 import org.jooq.Table;
@@ -32,6 +34,8 @@ public class SqlConnector implements StorageConnector {
 	private String url;
 	private Table<Record> TABLE;
 
+	private SQLDialect dialect = SQLDialect.MYSQL;
+
 	public SqlConnector(DatabaseConfig config) {
 		this(config.getHost(),
 			config.getPort(),
@@ -45,12 +49,38 @@ public class SqlConnector implements StorageConnector {
 		this.user = user;
 		this.password = password;
 
+		TABLE = DSL.table(tableName);
+
+		switch (dialect) {
+		case MYSQL:
+			initMySqlDriver(host, port, database);
+			break;
+		case SQLITE:
+			initSQLiteDriver();
+			break;
+		default:
+			break;
+		}
+
+		createTable();
+		printMetaData();
+	}
+
+	private void initSQLiteDriver() {
+		try {
+			Class.forName("org.sqlite.JDBC");
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
+		url = String.format("jdbc:sqlite:test.db");
+	}
+
+	private void initMySqlDriver(String host, int port, String database) {
 		try {
 			Class.forName("com.mysql.cj.jdbc.Driver");
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}
-		TABLE = DSL.table(tableName);
 		url = String.format("jdbc:mysql://%s:%s/%s?serverTimezone=GMT", host, port, database);
 	}
 
@@ -58,7 +88,7 @@ public class SqlConnector implements StorageConnector {
 	private <T> T doOperation(Function<DSLContext, T> function) {
 		T result = null;
 		try (Connection connection = DriverManager.getConnection(url, user, password)) {
-			DSLContext context = DSL.using(connection, SQLDialect.MYSQL);
+			DSLContext context = DSL.using(connection, dialect);
 			result = function.apply(context);
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -66,29 +96,50 @@ public class SqlConnector implements StorageConnector {
 		return result;
 	}
 
+	private void createTable() {
+		doOperation(context -> {
+			CreateTableColumnStep creation = context.createTableIfNotExists(TABLE)
+			.column(CardStapleInfo.CARDNAME)
+			.column(CardStapleInfo.TIMESTAMP);
+			for(Field<Integer> field : CardStapleInfo.FORMAT_FIELD.values()) {
+				creation.column(field);
+			}
+			return creation
+					.constraints(DSL.primaryKey(CardStapleInfo.CARDNAME))
+					.execute();
+		});
+	}
+
+	private void printMetaData() {
+//		doOperation(context -> {
+//			context.informationSchema(TABLE).getColumns().
+//		});
+	}
+
 	@Override
 	public void addDataset(CardStapleInfo cardStapleInfo) {
 		Map<Field<?>, Object> setMap = new HashMap<>();
 		setMap.put(CardStapleInfo.CARDNAME, cardStapleInfo.getCardName());
-		setMap.put(CardStapleInfo.TIMESTAMP, cardStapleInfo.getTimestamp());
+		setMap.put(CardStapleInfo.TIMESTAMP, LocalDateTime.now());// cardStapleInfo.getTimestamp());
 		for(MtgTop8Format format : MtgTop8Format.values()) {
 			Integer formatScore = cardStapleInfo.getFormatScore(format);
 			if(formatScore != null) {
 				setMap.put(CardStapleInfo.FORMAT_FIELD.get(format), formatScore);
 			}
 		}
-		
+
 		doOperation(context -> {
-			InsertOnDuplicateSetMoreStep<Record> call = context
+			InsertSetMoreStep<Record> insert = context
 					.insertInto(TABLE)
-					.set(setMap)
+					.set(setMap);
+			InsertOnDuplicateSetMoreStep<Record> update = insert
 					.onDuplicateKeyUpdate()
 					.set(setMap);
 			try {
-				call.execute();
+				update.execute();
 				System.out.println("Added Dataset to Database: " + cardStapleInfo);
 			} catch (Exception e) {
-				log.severe("Sql statement failed: " + call.toString());
+				log.severe("Sql statement failed: " + update.toString());
 				e.printStackTrace();
 			}
 			return null;
@@ -128,7 +179,7 @@ public class SqlConnector implements StorageConnector {
 		}
 		LocalDateTime dateTime = LocalDateTime.now();
 		dateTime.minusDays(daysAgo);
-		
+
 		conditions.add(CardStapleInfo.TIMESTAMP.greaterThan(dateTime));
 
 		return doOperation(context -> {
